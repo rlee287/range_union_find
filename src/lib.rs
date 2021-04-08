@@ -1,15 +1,34 @@
 #![forbid(unsafe_code)]
 
+//! Provides a data structure backed by a vector for unioning ranges of integers.
+//! We intelligently merge inserted ranges to minimize required storage.
+//! 
+//! Example usage:
+//! ```
+//! # use range_union_find::*;
+//! let mut range_holder = RangeUnionFind::<u32>::new();
+//! range_holder.insert_range(&(4..=8))?;
+//! range_holder.insert_range(&(6..=10))?;
+//! assert_eq!(range_holder.range_contained(&(2..=12)).unwrap(), OverlapType::Partial(7));
+//! assert_eq!(range_holder.range_contained(&(5..=9)).unwrap(), OverlapType::Contained);
+//! # Ok::<(), RangeOperationError>(())
+//! ```
+//! 
+//! All the functionality is in the [RangeUnionFind] struct.
 use std::ops::{Bound, RangeBounds};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
 
 use std::fmt;
 
+/// Enum describing how a range may be invalid.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RangeOperationError {
+    /// Range has an unbounded end.
     HasUnbounded,
+    /// Range operation caused an overflow.
     WouldOverflow,
+    /// Range is decreasing or empty.
     IsDecreasingOrEmpty
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,10 +38,14 @@ enum ContainedType {
     End,
     Exterior
 }
+/// Enum describing how a range may overlap with another range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OverlapType<T> {
+    /// Range does not overlap at all.
     Disjoint,
-    Partial(T), // How many elements overlap
+    /// Range overlaps partially, with parameter being overlap count.
+    Partial(T),
+    /// Range is contained in the data structure.
     Contained
 }
 
@@ -71,24 +94,22 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
  * assert always b_i < a_{i+1}; ranges are disjoint
  * We also assume ranges are always as optimized as possible
  */
-pub struct RangeUnionFind<T, U>
+/// Struct representing a union of ranges.
+pub struct RangeUnionFind<T>
 where
-    T: PrimInt,
-    U: RangeBounds<T>
+    T: PrimInt
 {
     range_storage: SortedVec<T>,
-    _e: std::marker::PhantomData<U>
 }
 
-impl<T, U> RangeUnionFind<T, U>
+impl<T> RangeUnionFind<T>
 where
-    T: PrimInt,
-    U: RangeBounds<T>
+    T: PrimInt
 {
+    /// Constructs a new [RangeUnionFind] object.
     pub fn new() -> Self {
         RangeUnionFind {
             range_storage: SortedVec::new(),
-            _e: std::marker::PhantomData::default()
         }
     }
     /*
@@ -114,25 +135,28 @@ where
         // Using round-down division here
         (enum_val, get_result_wrapped_val(would_insert_loc)/2)
     }
+    /// Returns whether `element` is contained in the stored ranges.
     pub fn element_contained(&self, element: &T) -> bool {
         match self.element_contained_enum(element) {
             (ContainedType::Exterior, _) => false,
             _ => true
         }
     }
-    /*
-     * Enum return types:
-     * Disjoint: no elements overlap
-     * Partial(T): some(count) elements overlap
-     * Contained: given range is entirely contained inside this one
-     */
-    pub fn range_contained(&self, range: &U) -> Result<OverlapType<T>,RangeOperationError> {
+    /// Returns how the given range overlaps with the stored ranges.
+    /// * `Disjoint`: No elements overlap
+    /// * `Partial(T)`: Some(count) elements overlap
+    /// * `Contained`: Range is entirely contained inside the struct
+    /// 
+    /// Returns [RangeOperationError] if given range is invalid.
+    pub fn range_contained<U: RangeBounds<T>>(&self, range: &U)
+            -> Result<OverlapType<T>,RangeOperationError> {
         let (input_start, input_end) = match get_normalized_range(range) {
             Ok((val_start,val_end)) => (val_start,val_end),
             Err(err) => return Err(err)
         };
         self.range_contained_pair(&input_start, &input_end)
     }
+    /// Functions like [Self::range_contained] given input `start..=end`.
     pub fn range_contained_pair(&self, start: &T, end: &T) -> Result<OverlapType<T>, RangeOperationError> {
         if start > end {
             return Err(RangeOperationError::IsDecreasingOrEmpty);
@@ -249,7 +273,9 @@ where
             return Ok(OverlapType::Partial(partial_count));
         }
     }
-    pub fn insert_range(&mut self, range: &U) -> Result<(), RangeOperationError> {
+    /// Inserts the range into the set of ranges. Returns [RangeOperationError] if the given range is invalid.
+    pub fn insert_range<U: RangeBounds<T>>(&mut self, range: &U)
+            -> Result<(), RangeOperationError> {
         let (start, end) = match get_normalized_range(range) {
             Ok((val_start,val_end)) => (val_start,val_end),
             Err(err) => return Err(err)
@@ -322,10 +348,9 @@ where
     }
 }
 
-impl<T, U> fmt::Display for RangeUnionFind<T, U>
+impl<T> fmt::Display for RangeUnionFind<T>
 where
     T: PrimInt + fmt::Display,
-    U: RangeBounds<T>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         assert!(self.range_storage.len()%2 == 0);
@@ -356,12 +381,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::ops::RangeInclusive;
     use super::*;
 
     #[test]
     fn insert_max_size_range() {
-        let mut range_obj = RangeUnionFind::<u8, RangeInclusive<u8>>::new();
+        let mut range_obj = RangeUnionFind::<u8>::new();
         range_obj.insert_range(&(0..=0xff)).unwrap();
         for i in 0..=0xff {
             assert!(range_obj.element_contained(&i));
@@ -369,12 +393,12 @@ mod tests {
     }
     #[test]
     fn insert_bad_range() {
-        let mut range_obj = RangeUnionFind::<u8, RangeInclusive<u8>>::new();
+        let mut range_obj = RangeUnionFind::<u8>::new();
         range_obj.insert_range(&(5..=2)).unwrap_err();
     }
     #[test]
     fn print_dual_range() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(0..=4)).unwrap();
         range_obj.insert_range(&(8..=16)).unwrap();
         let formatted = format!("{}",range_obj);
@@ -382,7 +406,7 @@ mod tests {
     }
     #[test]
     fn single_range_element_contained() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         for i in 0..=7 {
             assert!(!range_obj.element_contained(&i));
@@ -396,7 +420,7 @@ mod tests {
     }
     #[test]
     fn dual_range_singleton_element_contained() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(4..=4)).unwrap();
         for i in 0..=3 {
@@ -415,7 +439,7 @@ mod tests {
     }
     #[test]
     fn dual_range_element_contained() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(20..=40)).unwrap();
         for i in 0..=7 {
@@ -437,7 +461,7 @@ mod tests {
 
     #[test]
     fn single_range_range_disjoint() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
 
         assert_eq!(range_obj.range_contained(&(0..=7)).unwrap(),OverlapType::Disjoint);
@@ -445,7 +469,7 @@ mod tests {
     }
     #[test]
     fn single_range_range_contained() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
 
         assert_eq!(range_obj.range_contained(&(8..=16)).unwrap(),OverlapType::Contained);
@@ -455,7 +479,7 @@ mod tests {
     }
     #[test]
     fn single_range_range_partial() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
 
         assert_eq!(range_obj.range_contained(&(0..=8)).unwrap(),OverlapType::Partial(1));
@@ -468,7 +492,7 @@ mod tests {
     }
     #[test]
     fn multi_range_range_partial() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(4..=7)).unwrap();
         range_obj.insert_range(&(12..=15)).unwrap();
         range_obj.insert_range(&(20..=23)).unwrap();
@@ -487,7 +511,7 @@ mod tests {
     }
     #[test]
     fn dual_range_singleton_range_contained() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(4..=4)).unwrap();
         assert!(range_obj.range_contained(&(0..=3)).unwrap()==OverlapType::Disjoint);
@@ -498,7 +522,7 @@ mod tests {
     }
     #[test]
     fn insert_contained_range_over_single_range() {
-        let mut range_obj_old = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_old = RangeUnionFind::<u32>::new();
         range_obj_old.insert_range(&(8..=16)).unwrap();
 
         let mut range_obj_new = range_obj_old.clone();
@@ -515,70 +539,70 @@ mod tests {
     }
     #[test]
     fn insert_partial_range_over_single_range() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(0..=12)).unwrap();
 
-        let mut range_obj_single = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_single = RangeUnionFind::<u32>::new();
         range_obj_single.insert_range(&(0..=16)).unwrap();
         assert_eq!(range_obj, range_obj_single);
 
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(8..=24)).unwrap();
 
-        let mut range_obj_single = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_single = RangeUnionFind::<u32>::new();
         range_obj_single.insert_range(&(8..=24)).unwrap();
         assert_eq!(range_obj, range_obj_single);
     }
     #[test]
     fn insert_partial_overarch_range_over_dual_range() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(12..=16)).unwrap();
         range_obj.insert_range(&(4..=8)).unwrap();
 
         range_obj.insert_range(&(0..=20)).unwrap();
 
-        let mut range_obj_single = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_single = RangeUnionFind::<u32>::new();
         range_obj_single.insert_range(&(0..=20)).unwrap();
         assert_eq!(range_obj, range_obj_single);
     }
     #[test]
     fn insert_partial_gapfill_range_over_dual_range() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(12..=16)).unwrap();
         range_obj.insert_range(&(4..=8)).unwrap();
 
         range_obj.insert_range(&(0..=3)).unwrap();
 
-        let mut range_obj_combined = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_combined = RangeUnionFind::<u32>::new();
         range_obj_combined.insert_range(&(0..=8)).unwrap();
         range_obj_combined.insert_range(&(12..=16)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
 
         range_obj.insert_range(&(17..=20)).unwrap();
 
-        let mut range_obj_combined = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_combined = RangeUnionFind::<u32>::new();
         range_obj_combined.insert_range(&(0..=8)).unwrap();
         range_obj_combined.insert_range(&(12..=20)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
 
         range_obj.insert_range(&(9..=11)).unwrap();
 
-        let mut range_obj_combined = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_combined = RangeUnionFind::<u32>::new();
         range_obj_combined.insert_range(&(0..=20)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
     }
 
     #[test]
     fn insert_gapfill_element_over_dual_range() {
-        let mut range_obj = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj = RangeUnionFind::<u32>::new();
         range_obj.insert_range(&(10..=16)).unwrap();
         range_obj.insert_range(&(0..=8)).unwrap();
 
         range_obj.insert_range(&(9..=9)).unwrap();
 
-        let mut range_obj_combined = RangeUnionFind::<u32, RangeInclusive<u32>>::new();
+        let mut range_obj_combined = RangeUnionFind::<u32>::new();
         range_obj_combined.insert_range(&(0..=16)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
     }
