@@ -14,7 +14,7 @@
 //! # Ok::<(), RangeOperationError>(())
 //! ```
 //! 
-//! All the functionality is in the [RangeUnionFind] struct.
+//! All the functionality is in the [`RangeUnionFind`] struct.
 use std::ops::{Bound, RangeBounds};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
@@ -112,7 +112,7 @@ impl<T> RangeUnionFind<T>
 where
     T: PrimInt
 {
-    /// Constructs a new [RangeUnionFind] object.
+    /// Constructs a new [`RangeUnionFind`] object.
     pub fn new() -> Self {
         RangeUnionFind {
             range_storage: SortedVec::new(),
