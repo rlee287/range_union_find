@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 num-traits = "0.2.14"
 sorted-vec = "0.5.2"
+strum = "0.20.0"
+strum_macros = "0.20.0"

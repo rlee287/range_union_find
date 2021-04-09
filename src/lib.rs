@@ -21,8 +21,11 @@ use sorted_vec::SortedVec;
 
 use std::fmt;
 
+use std::error::Error;
+use strum_macros::Display as EnumDisplay;
+
 /// Enum describing how a range may be invalid.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
 pub enum RangeOperationError {
     /// Range has an unbounded end.
     HasUnbounded,
@@ -31,7 +34,10 @@ pub enum RangeOperationError {
     /// Range is decreasing or empty.
     IsDecreasingOrEmpty
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+impl Error for RangeOperationError {}
+// Handwritten Display impl?
+
+#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq)]
 enum ContainedType {
     Start,
     Interior,
@@ -39,7 +45,7 @@ enum ContainedType {
     Exterior
 }
 /// Enum describing how a range may overlap with another range.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
 pub enum OverlapType<T> {
     /// Range does not overlap at all.
     Disjoint,
