@@ -354,10 +354,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         assert!(self.range_storage.len()%2 == 0);
-        let opening = write!(f, "[");
-        if opening.is_err() {
-            return opening;
-        }
+        write!(f, "[")?;
         let mut pairs: Vec<String> = Vec::with_capacity(
             self.range_storage.len()/2);
         let mut range_pairs = self.range_storage.chunks_exact(2);
@@ -371,10 +368,7 @@ where
             };
             pairs.push(format!("[{}, {}]", range[0], range[1]));
         }
-        let pairs_write = write!(f, "{}", pairs.join(", "));
-        if pairs_write.is_err() {
-            return pairs_write;
-        }
+        write!(f, "{}", pairs.join(", "))?;
         return write!(f, "]");
     }
 }
