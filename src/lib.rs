@@ -147,7 +147,9 @@ where
     /// * `Partial(T)`: Some(count) elements overlap
     /// * `Contained`: Range is entirely contained inside the struct
     /// 
-    /// Returns [RangeOperationError] if given range is invalid.
+    /// # Errors
+    ///
+    /// Returns [`RangeOperationError`] if given range is invalid.
     pub fn range_contained<U: RangeBounds<T>>(&self, range: &U)
             -> Result<OverlapType<T>,RangeOperationError> {
         let (input_start, input_end) = match get_normalized_range(range) {
@@ -156,7 +158,7 @@ where
         };
         self.range_contained_pair(&input_start, &input_end)
     }
-    /// Functions like [Self::range_contained] given input `start..=end`.
+    /// Functions like [`Self::range_contained`] given input `start..=end`.
     pub fn range_contained_pair(&self, start: &T, end: &T) -> Result<OverlapType<T>, RangeOperationError> {
         if start > end {
             return Err(RangeOperationError::IsDecreasingOrEmpty);
@@ -273,7 +275,11 @@ where
             return Ok(OverlapType::Partial(partial_count));
         }
     }
-    /// Inserts the range into the set of ranges. Returns [RangeOperationError] if the given range is invalid.
+    /// Inserts the range into the set of ranges.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RangeOperationError`] if the given range is invalid.
     pub fn insert_range<U: RangeBounds<T>>(&mut self, range: &U)
             -> Result<(), RangeOperationError> {
         let (start, end) = match get_normalized_range(range) {
