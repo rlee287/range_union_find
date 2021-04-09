@@ -9,8 +9,8 @@
 //! let mut range_holder = RangeUnionFind::<u32>::new();
 //! range_holder.insert_range(&(4..=8))?;
 //! range_holder.insert_range(&(6..=10))?;
-//! assert_eq!(range_holder.range_contained(&(2..=12)).unwrap(), OverlapType::Partial(7));
-//! assert_eq!(range_holder.range_contained(&(5..=9)).unwrap(), OverlapType::Contained);
+//! assert_eq!(range_holder.range_contained(&(2..=12))?, OverlapType::Partial(7));
+//! assert_eq!(range_holder.range_contained(&(5..=9))?, OverlapType::Contained);
 //! # Ok::<(), RangeOperationError>(())
 //! ```
 //! 
