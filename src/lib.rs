@@ -408,6 +408,23 @@ where
     }
 }
 
+impl<T, U> Extend<U> for RangeUnionFind<T>
+where
+    T: PrimInt,
+    U: RangeBounds<T>
+{
+    /// Calls [`Self::insert_range`] for each range in the iterator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of the range insertions return an `Err`.
+    fn extend<I: IntoIterator<Item=U>>(&mut self, iter: I) {
+        for range in iter {
+            self.insert_range(&range).unwrap()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
