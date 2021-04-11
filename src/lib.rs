@@ -18,6 +18,7 @@
 use std::ops::{Bound, RangeBounds};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
+use std::iter::FromIterator;
 
 use std::fmt;
 
@@ -426,6 +427,26 @@ where
         for range in iter {
             self.insert_range(&range).unwrap()
         }
+    }
+}
+
+impl<T, U> FromIterator<U> for RangeUnionFind<T>
+where
+    T: PrimInt,
+    U: RangeBounds<T>
+{
+    /// Calls [`Self::insert_range`] for each range in the iterator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of the range insertions return an `Err`.
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = U>
+    {
+        let mut new_range_obj = RangeUnionFind::new();
+        new_range_obj.extend(iter);
+        new_range_obj
     }
 }
 
