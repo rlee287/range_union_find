@@ -37,12 +37,17 @@ pub enum RangeOperationError {
 impl Error for RangeOperationError {}
 // Handwritten Display impl?
 
-#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq)]
-enum ContainedType {
+/// Enum describing what location an element has in a range.
+#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
+pub enum ContainedType {
+    /// Element is outside a range.
+    Exterior,
+    /// Element is at the beginning of a range.
     Start,
+    /// Element is in the middle of a range.
     Interior,
-    End,
-    Exterior
+    /// Element is at the end of a range.
+    End
 }
 /// Enum describing how a range may overlap with another range.
 #[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
@@ -92,7 +97,7 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 /*
  * Stores ranges in the following form:
  * range_storage [a_1, b_1, a_2, b_2, ...]
@@ -118,12 +123,12 @@ where
             range_storage: SortedVec::new(),
         }
     }
-    /*
-     * Tuple is enum, range_id (a count of which range the element is in)
-     * Exterior,i means the exterior region before the i'th range
-     * Range id => indexes into vector are id*2, id*2+1
-     */
-    fn element_contained_enum(&self, element: &T) -> (ContainedType, usize) {
+    /// Returns a tuple describing the range the element is in, as well as its location.
+    /// The range_id is a count of which range the element is in.
+    /// The enum indicates where the element is in the range, with
+    /// `(Exterior,i)` meaning the exterior region before the i'th range.
+    /// See [`ContainedType`] for an explanation of the enum values.
+    pub fn element_contained_enum(&self, element: &T) -> (ContainedType, usize) {
         assert!(self.range_storage.len() % 2 == 0);
         let would_insert_loc = self.range_storage.binary_search(element);
         let enum_val = match would_insert_loc {
@@ -138,6 +143,7 @@ where
                 _ => unreachable!()
             }
         };
+        // Range id => indexes into vector are id*2, id*2+1
         // Using round-down division here
         (enum_val, get_result_wrapped_val(would_insert_loc)/2)
     }
@@ -149,9 +155,7 @@ where
         }
     }
     /// Returns how the given range overlaps with the stored ranges.
-    /// * `Disjoint`: No elements overlap
-    /// * `Partial(T)`: Some(count) elements overlap
-    /// * `Contained`: Range is entirely contained inside the struct
+    /// See [`OverlapType`] for a description of the enum values.
     /// 
     /// # Errors
     ///
