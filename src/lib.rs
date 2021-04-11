@@ -466,6 +466,17 @@ mod tests {
     fn insert_bad_range() {
         let mut range_obj = RangeUnionFind::<u8>::new();
         range_obj.insert_range(&(5..=2)).unwrap_err();
+        range_obj.insert_range(&(..)).unwrap_err();
+    }
+    #[test]
+    fn make_from_iter() {
+        let range_vec = vec![1..3, 5..7];
+        let range_obj = RangeUnionFind::<u8>::from_iter(range_vec);
+
+        let mut range_obj_ref = RangeUnionFind::<u8>::new();
+        range_obj_ref.insert_range(&(1..3)).unwrap();
+        range_obj_ref.insert_range(&(5..7)).unwrap();
+        assert_eq!(range_obj, range_obj_ref);
     }
     #[test]
     fn print_dual_range() {
