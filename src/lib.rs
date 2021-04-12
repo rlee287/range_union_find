@@ -466,6 +466,8 @@ mod tests {
     fn insert_bad_range() {
         let mut range_obj = RangeUnionFind::<u8>::new();
         range_obj.insert_range(&(5..=2)).unwrap_err();
+        range_obj.insert_range(&(1..)).unwrap_err();
+        range_obj.insert_range(&(..3)).unwrap_err();
         range_obj.insert_range(&(..)).unwrap_err();
     }
     #[test]
