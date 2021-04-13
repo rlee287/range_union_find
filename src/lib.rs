@@ -15,7 +15,7 @@
 //! ```
 //! 
 //! All the functionality is in the [`RangeUnionFind`] struct.
-use std::ops::{Bound, RangeBounds};
+use std::ops::{Bound, RangeBounds, RangeInclusive};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
 use std::iter::FromIterator;
@@ -386,6 +386,21 @@ where
         }
         return Ok(());
     }
+    /// Converts a [`RangeUnionFind`] object into a collection of [`RangeInclusive`].
+    pub fn into_collection<U>(self) -> U
+    where
+        U: FromIterator<RangeInclusive<T>> + Default
+    {
+        assert!(self.range_storage.len() % 2 == 0);
+        let size = self.range_storage.len() / 2;
+        let mut self_iter = self.range_storage.into_vec().into_iter();
+        let mut collect_vec = Vec::with_capacity(size);
+        while let (Some(begin), Some(end)) = (self_iter.next(), self_iter.next()) {
+            collect_vec.push(begin..=end);
+        };
+        debug_assert!(self_iter.next().is_none());
+        U::from_iter(collect_vec.into_iter())
+    }
 }
 
 impl<T> fmt::Display for RangeUnionFind<T>
@@ -479,6 +494,13 @@ mod tests {
         range_obj_ref.insert_range(&(1..3)).unwrap();
         range_obj_ref.insert_range(&(5..7)).unwrap();
         assert_eq!(range_obj, range_obj_ref);
+    }
+    #[test]
+    fn turn_into_iter() {
+        let range_vec = vec![1..=3, 5..=7, 10..=16];
+        let range_obj = RangeUnionFind::<u8>::from_iter(range_vec.clone());
+        let extract_vec: Vec<RangeInclusive<u8>> = range_obj.into_collection();
+        assert_eq!(range_vec, extract_vec);
     }
     #[test]
     fn print_dual_range() {
