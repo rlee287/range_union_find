@@ -129,6 +129,24 @@ where
     /// The enum indicates where the element is in the range, with
     /// `(Exterior,i)` meaning the exterior region before the i'th range.
     /// See [`ContainedType`] for an explanation of the enum values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use range_union_find::*;
+    /// let mut range_obj = IntRangeUnionFind::new();
+    /// range_obj.insert_range(&(10..20));
+    /// assert_eq!(range_obj.element_contained_enum(&0),
+    ///     (ContainedType::Exterior, 0));
+    /// assert_eq!(range_obj.element_contained_enum(&10),
+    ///     (ContainedType::Start, 0));
+    /// assert_eq!(range_obj.element_contained_enum(&15),
+    ///     (ContainedType::Interior, 0));
+    /// assert_eq!(range_obj.element_contained_enum(&19),
+    ///     (ContainedType::End, 0));
+    /// assert_eq!(range_obj.element_contained_enum(&25),
+    ///     (ContainedType::Exterior, 1));
+    /// ```
     pub fn element_contained_enum(&self, element: &T) -> (ContainedType, usize) {
         assert!(self.range_storage.len() % 2 == 0);
         let would_insert_loc = self.range_storage.binary_search(element);
@@ -148,7 +166,9 @@ where
         // Using round-down division here
         (enum_val, get_result_wrapped_val(would_insert_loc)/2)
     }
-    /// Returns whether `element` is contained in the stored ranges.
+    /// Returns whether the element is contained in the stored ranges.
+    /// Returns `false` when [`Self::element_contained_enum`] returns a
+    /// [`ContainedType::Exterior`] enum, and `true` otherwise.
     pub fn element_contained(&self, element: &T) -> bool {
         match self.element_contained_enum(element) {
             (ContainedType::Exterior, _) => false,
@@ -158,6 +178,24 @@ where
     /// Returns how the given range overlaps with the stored ranges.
     /// See [`OverlapType`] for a description of the enum values.
     /// 
+    /// # Example
+    ///
+    /// ```
+    /// # use range_union_find::*;
+    /// let mut range_obj = IntRangeUnionFind::new();
+    /// range_obj.insert_range(&(10..20));
+    /// range_obj.insert_range(&(-20..-10));
+    /// assert_eq!(range_obj.range_contained(&(15..17))?,
+    ///     OverlapType::Contained);
+    /// assert_eq!(range_obj.range_contained(&(-5..5))?,
+    ///     OverlapType::Disjoint);
+    /// assert_eq!(range_obj.range_contained(&(0..20))?,
+    ///     OverlapType::Partial(10));
+    /// assert_eq!(range_obj.range_contained(&(-15..15))?,
+    ///     OverlapType::Partial(10));
+    /// # Ok::<(), RangeOperationError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`RangeOperationError`] if given range is invalid.
