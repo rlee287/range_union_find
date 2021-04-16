@@ -331,21 +331,29 @@ where
     /// Returns [`RangeOperationError`] if the given range is invalid.
     pub fn insert_range<U: RangeBounds<T>>(&mut self, range: &U)
             -> Result<(), RangeOperationError> {
-        let (start, end) = match get_normalized_range(range) {
+        let (input_start, input_end) = match get_normalized_range(range) {
             Ok((val_start,val_end)) => (val_start,val_end),
             Err(err) => return Err(err)
         };
+        self.insert_range_pair(&input_start, &input_end)
+    }
+    /// Functions like [`Self::insert_range`] given input `start..=end`.
+    pub fn insert_range_pair(&mut self, start: &T, end: &T)
+            -> Result<(), RangeOperationError> {
+        if start > end {
+            return Err(RangeOperationError::IsDecreasingOrEmpty);
+        }
         match self.range_contained_pair(&start, &end).unwrap() {
             OverlapType::Disjoint => {
                 //let prev_adj = self.range_storage.binary_search(&(start-T::one()));
-                let prev_adj = match start == T::min_value() {
+                let prev_adj = match *start == T::min_value() {
                     true => Err(0), // contained value is dontcare
-                    false => self.range_storage.binary_search(&(start-T::one()))
+                    false => self.range_storage.binary_search(&(*start-T::one()))
                 };
                 //let next_adj = self.range_storage.binary_search(&(end+T::one()));
-                let next_adj = match end == T::max_value() {
+                let next_adj = match *end == T::max_value() {
                     true => Err(0), // contained value is dontcare
-                    false => self.range_storage.binary_search(&(end+T::one()))
+                    false => self.range_storage.binary_search(&(*end+T::one()))
                 };
                 if prev_adj.is_ok() && next_adj.is_ok() {
                     // Element fills gap between ranges
@@ -357,15 +365,15 @@ where
                 } else if prev_adj.is_ok() {
                     // Extend start range by one, and insert other end
                     self.range_storage.remove_index(prev_adj.unwrap());
-                    self.range_storage.insert(end);
+                    self.range_storage.insert(*end);
                 } else if next_adj.is_ok() {
                     // Extend end range by one, and insert other end
                     self.range_storage.remove_index(next_adj.unwrap());
-                    self.range_storage.insert(start);
+                    self.range_storage.insert(*start);
                 } else {
                     // Insert entirely new range
-                    self.range_storage.insert(start);
-                    self.range_storage.insert(end);
+                    self.range_storage.insert(*start);
+                    self.range_storage.insert(*end);
                 }
             }
             OverlapType::Partial(_) => {
@@ -373,14 +381,14 @@ where
                 if start_enum == ContainedType::Exterior {
                     let old_index_rm = 2*start_range_id;
                     if start_range_id > 0
-                            && self.range_storage[old_index_rm-1] == start-T::one() {
+                            && self.range_storage[old_index_rm-1] == *start-T::one() {
                         // End of prev range is adjacent to new insert
                         self.range_storage.remove_index(old_index_rm-1);
                         self.range_storage.remove_index(old_index_rm-1);
                     } else {
                         // Extend range with new starting position
                         let old_element = self.range_storage[old_index_rm];
-                        let insert_pos = self.range_storage.insert(start);
+                        let insert_pos = self.range_storage.insert(*start);
                         assert!(insert_pos == old_index_rm);
                         let removed_element = self.range_storage.remove_index(old_index_rm+1);
                         assert!(old_element == removed_element);
@@ -395,14 +403,14 @@ where
                     assert_ne!(end_range_id, 0);
                     let old_index_rm = 2*(end_range_id-1)+1;
                     if old_index_rm < (self.range_storage.len()-1)
-                            && self.range_storage[old_index_rm+1] == end+T::one() {
+                            && self.range_storage[old_index_rm+1] == *end+T::one() {
                         // Start of next range is adjacent to new insert
                         self.range_storage.remove_index(old_index_rm);
                         self.range_storage.remove_index(old_index_rm);
                     } else {
                         // Extend range with new ending position
                         let old_element = self.range_storage[old_index_rm];
-                        let insert_pos = self.range_storage.insert(end);
+                        let insert_pos = self.range_storage.insert(*end);
                         assert!(insert_pos == old_index_rm+1);
                         let removed_element = self.range_storage.remove_index(old_index_rm);
                         assert!(old_element == removed_element);
