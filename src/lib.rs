@@ -124,6 +124,7 @@ where
             range_storage: SortedVec::new(),
         }
     }
+
     /// Returns a tuple describing the range the element is in, as well as its location.
     /// The range_id is a count of which range the element is in.
     /// The enum indicates where the element is in the range, with
@@ -149,6 +150,10 @@ where
     /// ```
     pub fn element_contained_enum(&self, element: &T) -> (ContainedType, usize) {
         assert!(self.range_storage.len() % 2 == 0);
+        /*
+         * Ok(pos) -> element in list -> endpoint
+         * Err(pos) -> element not in list -> strictly inside or outside
+         */
         let would_insert_loc = self.range_storage.binary_search(element);
         let enum_val = match would_insert_loc {
             Ok(pos) => match pos % 2 {
@@ -170,11 +175,10 @@ where
     /// Returns `false` when [`Self::element_contained_enum`] returns a
     /// [`ContainedType::Exterior`] enum, and `true` otherwise.
     pub fn element_contained(&self, element: &T) -> bool {
-        match self.element_contained_enum(element) {
-            (ContainedType::Exterior, _) => false,
-            _ => true
-        }
+        !matches!(self.element_contained_enum(element),
+            (ContainedType::Exterior, _))
     }
+
     /// Returns how the given range overlaps with the stored ranges.
     /// See [`OverlapType`] for a description of the enum values.
     /// 
@@ -215,7 +219,6 @@ where
         let vec_count = self.range_storage.len();
         let (range_start_enum, range_start_id) = self.element_contained_enum(&start);
         let (range_end_enum, range_end_id) = self.element_contained_enum(&end);
-        //println!("{:?}{} {:?}{}", range_start_enum, range_start_id, range_end_enum, range_end_id);
         assert!(range_end_id >= range_start_id);
         if range_start_id == range_end_id {
             // Single range, given endpoint<=a contained range endpoint
@@ -324,6 +327,7 @@ where
             return Ok(OverlapType::Partial(partial_count));
         }
     }
+
     /// Inserts the range into the set of ranges.
     ///
     /// # Errors
@@ -345,12 +349,11 @@ where
         }
         match self.range_contained_pair(&start, &end).unwrap() {
             OverlapType::Disjoint => {
-                //let prev_adj = self.range_storage.binary_search(&(start-T::one()));
+                // Use match arms to catch potential overflows
                 let prev_adj = match *start == T::min_value() {
                     true => Err(0), // contained value is dontcare
                     false => self.range_storage.binary_search(&(*start-T::one()))
                 };
-                //let next_adj = self.range_storage.binary_search(&(end+T::one()));
                 let next_adj = match *end == T::max_value() {
                     true => Err(0), // contained value is dontcare
                     false => self.range_storage.binary_search(&(*end+T::one()))
@@ -432,6 +435,7 @@ where
         }
         return Ok(());
     }
+
     /// Converts a [`IntRangeUnionFind`] object into a collection of [`RangeInclusive`] with element type `T`.
     pub fn into_collection<U>(self) -> U
     where
@@ -444,8 +448,7 @@ where
         while let (Some(begin), Some(end)) = (self_iter.next(), self_iter.next()) {
             collect_vec.push(begin..=end);
         };
-        debug_assert!(self_iter.next().is_none());
-        U::from_iter(collect_vec.into_iter())
+        collect_vec.into_iter().collect::<U>()
     }
 }
 
@@ -454,7 +457,7 @@ where
     T: PrimInt + fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        assert!(self.range_storage.len()%2 == 0);
+        assert!(self.range_storage.len() % 2 == 0);
         write!(f, "[")?;
         let mut pairs: Vec<String> = Vec::with_capacity(
             self.range_storage.len()/2);
@@ -462,7 +465,7 @@ where
         loop {
             let range = match range_pairs.next() {
                 None => {
-                    assert!(range_pairs.remainder().len()==0);
+                    assert!(range_pairs.remainder().is_empty());
                     break;
                 },
                 Some(val) => val
