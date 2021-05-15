@@ -436,19 +436,26 @@ where
         return Ok(());
     }
 
-    /// Converts a [`IntRangeUnionFind`] object into a collection of [`RangeInclusive`] with element type `T`.
-    pub fn into_collection<U>(self) -> U
+    /// Creates a collection of [`RangeInclusive`] with element type `T` from a [`IntRangeUnionFind`] object.
+    pub fn to_collection<U>(&self) -> U
     where
-        U: FromIterator<RangeInclusive<T>> + Default
+        U: FromIterator<RangeInclusive<T>>
     {
         assert!(self.range_storage.len() % 2 == 0);
         let size = self.range_storage.len() / 2;
-        let mut self_iter = self.range_storage.into_vec().into_iter();
+        let mut self_iter = self.range_storage.to_vec().into_iter();
         let mut collect_vec = Vec::with_capacity(size);
         while let (Some(begin), Some(end)) = (self_iter.next(), self_iter.next()) {
             collect_vec.push(begin..=end);
         };
         collect_vec.into_iter().collect::<U>()
+    }
+    /// Converts a [`IntRangeUnionFind`] object into a collection of [`RangeInclusive`] with element type `T`.
+    pub fn into_collection<U>(self) -> U
+    where
+        U: FromIterator<RangeInclusive<T>>
+    {
+        self.to_collection()
     }
 }
 
