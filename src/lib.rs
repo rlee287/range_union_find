@@ -39,7 +39,7 @@ impl Error for RangeOperationError {}
 // Handwritten Display impl?
 
 /// Enum describing what location an element has in a range.
-#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ContainedType {
     /// Element is outside a range.
     Exterior,
@@ -51,7 +51,7 @@ pub enum ContainedType {
     End
 }
 /// Enum describing how a range may overlap with another range.
-#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OverlapType<T> {
     /// Range does not overlap at all.
     Disjoint,
