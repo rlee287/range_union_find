@@ -477,7 +477,7 @@ where
                 },
                 Some(val) => val
             };
-            pairs.push(format!("[{}, {}]", range[0], range[1]));
+            pairs.push(format!("{}..={}", range[0], range[1]));
         }
         write!(f, "{}", pairs.join(", "))?;
         return write!(f, "]");
@@ -571,7 +571,7 @@ mod tests {
         range_obj.insert_range(&(0..=4)).unwrap();
         range_obj.insert_range(&(8..=16)).unwrap();
         let formatted = format!("{}",range_obj);
-        assert_eq!(formatted, "[[0, 4], [8, 16]]");
+        assert_eq!(formatted, "[0..=4, 8..=16]");
     }
     #[test]
     fn single_range_element_contained() {
