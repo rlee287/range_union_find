@@ -521,6 +521,13 @@ where
     }
 }
 
+// TODO: other Vec types?
+impl<T: PrimInt> From<IntRangeUnionFind<T>> for Vec<RangeInclusive<T>> {
+    fn from(union_obj: IntRangeUnionFind<T>) -> Vec<RangeInclusive<T>> {
+        union_obj.into_collection()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
