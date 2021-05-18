@@ -359,20 +359,20 @@ where
                     true => Err(0), // contained value is dontcare
                     false => self.range_storage.binary_search(&(*end+T::one()))
                 };
-                if prev_adj.is_ok() && next_adj.is_ok() {
+                if let (Ok(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
                     // Element fills gap between ranges
-                    let index_remove = prev_adj.unwrap();
-                    assert!(index_remove + 1 == next_adj.unwrap());
+                    let index_remove = prev_val;
+                    assert!(index_remove + 1 == next_val);
                     // Remove both endpoints
                     self.range_storage.remove_index(index_remove);
                     self.range_storage.remove_index(index_remove);
-                } else if prev_adj.is_ok() {
+                } else if let Ok(prev_val) = prev_adj {
                     // Extend start range by one, and insert other end
-                    self.range_storage.remove_index(prev_adj.unwrap());
+                    self.range_storage.remove_index(prev_val);
                     self.range_storage.insert(*end);
-                } else if next_adj.is_ok() {
+                } else if let Ok(next_val) = next_adj {
                     // Extend end range by one, and insert other end
-                    self.range_storage.remove_index(next_adj.unwrap());
+                    self.range_storage.remove_index(next_val);
                     self.range_storage.insert(*start);
                 } else {
                     // Insert entirely new range
@@ -434,7 +434,7 @@ where
                 // Do nothing
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a collection of [`RangeInclusive`] with element type `T` from a [`IntRangeUnionFind`] object.
@@ -471,7 +471,7 @@ impl<T: PrimInt> BitOr for IntRangeUnionFind<T> {
     type Output = Self;
     /// Computes the union of the two [`IntRangeUnionFind`] objects.
     fn bitor(self, rhs: Self) -> Self::Output {
-        let mut dup_obj = self.clone();
+        let mut dup_obj = self;
         dup_obj.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
         dup_obj
     }
