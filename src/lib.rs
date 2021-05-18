@@ -99,7 +99,7 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Default, Clone, PartialEq, Eq, Hash)]
 /*
  * Stores ranges in the following form:
  * range_storage [a_1, b_1, a_2, b_2, ...]
@@ -477,12 +477,15 @@ impl<T: PrimInt> BitOr for IntRangeUnionFind<T> {
     }
 }
 
-impl<T> fmt::Display for IntRangeUnionFind<T>
+impl<T> fmt::Debug for IntRangeUnionFind<T>
 where
-    T: PrimInt + fmt::Display,
+    T: PrimInt + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        assert!(self.range_storage.len() % 2 == 0);
+        if self.range_storage.len() % 2 != 0 {
+            let raw_vec_str = format!("{:?}", self.range_storage.to_vec());
+            panic!("{}", raw_vec_str);
+        }
         write!(f, "[")?;
         let mut pairs: Vec<String> = Vec::with_capacity(
             self.range_storage.len()/2);
@@ -490,12 +493,12 @@ where
         loop {
             let range = match range_pairs.next() {
                 None => {
-                    assert!(range_pairs.remainder().is_empty());
+                    debug_assert!(range_pairs.remainder().is_empty());
                     break;
                 },
                 Some(val) => val
             };
-            pairs.push(format!("{}..={}", range[0], range[1]));
+            pairs.push(format!("{:?}..={:?}", range[0], range[1]));
         }
         write!(f, "{}", pairs.join(", "))?;
         return write!(f, "]");
@@ -606,7 +609,7 @@ mod tests {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(0..=4)).unwrap();
         range_obj.insert_range(&(8..=16)).unwrap();
-        let formatted = format!("{}",range_obj);
+        let formatted = format!("{:?}",range_obj);
         assert_eq!(formatted, "[0..=4, 8..=16]");
     }
     #[test]
