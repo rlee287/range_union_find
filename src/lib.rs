@@ -16,6 +16,7 @@
 //! 
 //! All the functionality is in the [`IntRangeUnionFind`] struct (though we may add `RangeUnionFind` structs for different element types in the future).
 use std::ops::{Bound, RangeBounds, RangeInclusive};
+use std::ops::{BitOr, BitOrAssign};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
 use std::iter::FromIterator;
@@ -459,6 +460,23 @@ where
     }
 }
 
+impl<T: PrimInt> BitOrAssign for IntRangeUnionFind<T> {
+    /// Extends the [`IntRangeUnionFind`] object with the ranges of `rhs`.
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
+    }
+}
+
+impl<T: PrimInt> BitOr for IntRangeUnionFind<T> {
+    type Output = Self;
+    /// Computes the union of the two [`IntRangeUnionFind`] objects.
+    fn bitor(self, rhs: Self) -> Self::Output {
+        let mut dup_obj = self.clone();
+        dup_obj.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
+        dup_obj
+    }
+}
+
 impl<T> fmt::Display for IntRangeUnionFind<T>
 where
     T: PrimInt + fmt::Display,
@@ -564,6 +582,24 @@ mod tests {
         let range_obj = IntRangeUnionFind::<u8>::from_iter(range_vec.clone());
         let extract_vec: Vec<RangeInclusive<u8>> = range_obj.into_collection();
         assert_eq!(range_vec, extract_vec);
+    }
+    #[test]
+    fn extend_bitor_equivalence() {
+        let range_vec_full = vec![1..=3, 5..=7, 10..=16];
+        let range_obj_full = IntRangeUnionFind::<u8>::from_iter(range_vec_full);
+
+        let range_vec_second = vec![5..=7, 10..=16];
+        let range_obj_second = IntRangeUnionFind::<u8>::from_iter(range_vec_second);
+
+        let mut range_obj_first = IntRangeUnionFind::<u8>::default();
+        range_obj_first.insert_range(&(1..=3)).unwrap();
+        let mut range_obj_build = range_obj_first.clone();
+
+        let range_obj_final = range_obj_first | range_obj_second.clone();
+        assert_eq!(range_obj_full, range_obj_final);
+
+        range_obj_build |= range_obj_second;
+        assert_eq!(range_obj_full, range_obj_build);
     }
     #[test]
     fn print_dual_range() {
