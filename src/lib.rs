@@ -24,10 +24,9 @@ use std::iter::FromIterator;
 use std::fmt;
 
 use std::error::Error;
-use strum_macros::Display as EnumDisplay;
 
 /// Enum describing how a range may be invalid.
-#[derive(Clone, Copy, Debug, EnumDisplay, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RangeOperationError {
     /// Range has an unbounded end.
     HasUnbounded,
@@ -35,6 +34,19 @@ pub enum RangeOperationError {
     WouldOverflow,
     /// Range is decreasing or empty.
     IsDecreasingOrEmpty
+}
+impl fmt::Display for RangeOperationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let description_str = match self {
+            RangeOperationError::HasUnbounded =>
+                "Range is unbounded",
+            RangeOperationError::WouldOverflow =>
+                "Range normalization would overflow type",
+            RangeOperationError::IsDecreasingOrEmpty =>
+                "Range has no elements"
+        };
+        write!(f, "{}", description_str)
+    }
 }
 impl Error for RangeOperationError {}
 // Handwritten Display impl?
