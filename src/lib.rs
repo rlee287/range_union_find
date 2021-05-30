@@ -494,7 +494,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.range_storage.len() % 2 != 0 {
             let raw_vec_str = format!("{:?}", self.range_storage.to_vec());
-            panic!("{}", raw_vec_str);
+            panic!("Invalid internal storage {}", raw_vec_str);
         }
         write!(f, "[")?;
         let mut pairs: Vec<String> = Vec::with_capacity(
