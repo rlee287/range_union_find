@@ -399,8 +399,7 @@ where
                     if start_range_id > 0
                             && self.range_storage[old_index_rm-1] == *start-T::one() {
                         // End of prev range is adjacent to new insert
-                        self.range_storage.remove_index(old_index_rm-1);
-                        self.range_storage.remove_index(old_index_rm-1);
+                        self.range_storage.drain(old_index_rm-1..=old_index_rm);
                     } else {
                         // Extend range with new starting position
                         let old_element = self.range_storage[old_index_rm];
@@ -421,8 +420,7 @@ where
                     if old_index_rm < (self.range_storage.len()-1)
                             && self.range_storage[old_index_rm+1] == *end+T::one() {
                         // Start of next range is adjacent to new insert
-                        self.range_storage.remove_index(old_index_rm);
-                        self.range_storage.remove_index(old_index_rm);
+                        self.range_storage.drain(old_index_rm..=old_index_rm+1);
                     } else {
                         // Extend range with new ending position
                         let old_element = self.range_storage[old_index_rm];
@@ -437,9 +435,9 @@ where
                 // Delete intermediate ranges
                 if end_range_id != start_range_id {
                     let middle_range_count = (end_range_id-start_range_id+1)-2;
-                    for _ in 0..2*middle_range_count {
-                        self.range_storage.remove_index(2*start_range_id+1);
-                    }
+                    let del_range = 2*start_range_id+1
+                        ..2*start_range_id+1+2*middle_range_count;
+                    self.range_storage.drain(del_range);
                 }
             }
             OverlapType::Contained => {
