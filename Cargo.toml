@@ -1,6 +1,6 @@
 [package]
 name = "range_union_find"
-version = "0.2.1"
+version = "0.3.0-dev"
 authors = ["rlee287 <rlee287@yahoo.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -15,3 +15,6 @@ categories = ["algorithms", "data-structures"]
 [dependencies]
 num-traits = "0.2.14"
 sorted-vec = "0.5.2"
+
+[dev-dependencies]
+version-sync = "0.9"

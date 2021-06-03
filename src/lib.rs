@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![doc(html_root_url = "https://docs.rs/range_union_find/0.3.0-dev")]
 
 //! Provides a data structure backed by a vector for unioning ranges of integers.
 //! We intelligently merge inserted ranges to minimize required storage.
@@ -9,8 +10,8 @@
 //! let mut range_holder = IntRangeUnionFind::<u32>::new();
 //! range_holder.insert_range(&(4..=8))?;
 //! range_holder.insert_range(&(6..=10))?;
-//! assert_eq!(range_holder.range_contained(&(2..=12))?, OverlapType::Partial(7));
-//! assert_eq!(range_holder.range_contained(&(5..=9))?, OverlapType::Contained);
+//! assert_eq!(range_holder.has_range(&(2..=12))?, OverlapType::Partial(7));
+//! assert_eq!(range_holder.has_range(&(5..=9))?, OverlapType::Contained);
 //! # Ok::<(), RangeOperationError>(())
 //! ```
 //! 
@@ -149,18 +150,18 @@ where
     /// # use range_union_find::*;
     /// let mut range_obj = IntRangeUnionFind::new();
     /// range_obj.insert_range(&(10..20));
-    /// assert_eq!(range_obj.element_contained_enum(&0),
+    /// assert_eq!(range_obj.has_element_enum(&0),
     ///     (ContainedType::Exterior, 0));
-    /// assert_eq!(range_obj.element_contained_enum(&10),
+    /// assert_eq!(range_obj.has_element_enum(&10),
     ///     (ContainedType::Start, 0));
-    /// assert_eq!(range_obj.element_contained_enum(&15),
+    /// assert_eq!(range_obj.has_element_enum(&15),
     ///     (ContainedType::Interior, 0));
-    /// assert_eq!(range_obj.element_contained_enum(&19),
+    /// assert_eq!(range_obj.has_element_enum(&19),
     ///     (ContainedType::End, 0));
-    /// assert_eq!(range_obj.element_contained_enum(&25),
+    /// assert_eq!(range_obj.has_element_enum(&25),
     ///     (ContainedType::Exterior, 1));
     /// ```
-    pub fn element_contained_enum(&self, element: &T) -> (ContainedType, usize) {
+    pub fn has_element_enum(&self, element: &T) -> (ContainedType, usize) {
         assert!(self.range_storage.len() % 2 == 0);
         /*
          * Ok(pos) -> element in list -> endpoint
@@ -184,10 +185,10 @@ where
         (enum_val, get_result_wrapped_val(would_insert_loc)/2)
     }
     /// Returns whether the element is contained in the stored ranges.
-    /// Returns `false` when [`Self::element_contained_enum`] returns a
+    /// Returns `false` when [`Self::has_element_enum`] returns a
     /// [`ContainedType::Exterior`] enum, and `true` otherwise.
-    pub fn element_contained(&self, element: &T) -> bool {
-        !matches!(self.element_contained_enum(element),
+    pub fn has_element(&self, element: &T) -> bool {
+        !matches!(self.has_element_enum(element),
             (ContainedType::Exterior, _))
     }
 
@@ -201,13 +202,13 @@ where
     /// let mut range_obj = IntRangeUnionFind::new();
     /// range_obj.insert_range(&(10..20));
     /// range_obj.insert_range(&(-20..-10));
-    /// assert_eq!(range_obj.range_contained(&(15..17))?,
+    /// assert_eq!(range_obj.has_range(&(15..17))?,
     ///     OverlapType::Contained);
-    /// assert_eq!(range_obj.range_contained(&(-5..5))?,
+    /// assert_eq!(range_obj.has_range(&(-5..5))?,
     ///     OverlapType::Disjoint);
-    /// assert_eq!(range_obj.range_contained(&(0..20))?,
+    /// assert_eq!(range_obj.has_range(&(0..20))?,
     ///     OverlapType::Partial(10));
-    /// assert_eq!(range_obj.range_contained(&(-15..15))?,
+    /// assert_eq!(range_obj.has_range(&(-15..15))?,
     ///     OverlapType::Partial(10));
     /// # Ok::<(), RangeOperationError>(())
     /// ```
@@ -215,22 +216,22 @@ where
     /// # Errors
     ///
     /// Returns [`RangeOperationError`] if given range is invalid.
-    pub fn range_contained<U: RangeBounds<T>>(&self, range: &U)
+    pub fn has_range<U: RangeBounds<T>>(&self, range: &U)
             -> Result<OverlapType<T>,RangeOperationError> {
         let (input_start, input_end) = match get_normalized_range(range) {
             Ok((val_start,val_end)) => (val_start,val_end),
             Err(err) => return Err(err)
         };
-        self.range_contained_pair(&input_start, &input_end)
+        self.has_range_pair(&input_start, &input_end)
     }
-    /// Functions like [`Self::range_contained`] given input `start..=end`.
-    pub fn range_contained_pair(&self, start: &T, end: &T) -> Result<OverlapType<T>, RangeOperationError> {
+    /// Functions like [`Self::has_range`] given input `start..=end`.
+    pub fn has_range_pair(&self, start: &T, end: &T) -> Result<OverlapType<T>, RangeOperationError> {
         if start > end {
             return Err(RangeOperationError::IsDecreasingOrEmpty);
         }
         let vec_count = self.range_storage.len();
-        let (range_start_enum, range_start_id) = self.element_contained_enum(&start);
-        let (range_end_enum, range_end_id) = self.element_contained_enum(&end);
+        let (range_start_enum, range_start_id) = self.has_element_enum(&start);
+        let (range_end_enum, range_end_id) = self.has_element_enum(&end);
         assert!(range_end_id >= range_start_id);
         if range_start_id == range_end_id {
             // Single range, given endpoint<=a contained range endpoint
@@ -359,7 +360,7 @@ where
         if start > end {
             return Err(RangeOperationError::IsDecreasingOrEmpty);
         }
-        match self.range_contained_pair(&start, &end).unwrap() {
+        match self.has_range_pair(&start, &end).unwrap() {
             OverlapType::Disjoint => {
                 // Use match arms to catch potential overflows
                 let prev_adj = match *start == T::min_value() {
@@ -392,7 +393,7 @@ where
                 }
             }
             OverlapType::Partial(_) => {
-                let (start_enum, start_range_id) = self.element_contained_enum(&start);
+                let (start_enum, start_range_id) = self.has_element_enum(&start);
                 if start_enum == ContainedType::Exterior {
                     let old_index_rm = 2*start_range_id;
                     if start_range_id > 0
@@ -411,7 +412,7 @@ where
                 } // else we do not need to adjust the start point
 
                 // Compute end range id here here as it may be different after begin operations
-                let (end_enum, end_range_id) = self.element_contained_enum(&end);
+                let (end_enum, end_range_id) = self.has_element_enum(&end);
                 if end_enum == ContainedType::Exterior {
                     // end_range_id==0 -> range isn't partial
                     assert_ne!(end_range_id, 0);
@@ -567,7 +568,7 @@ mod tests {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(0..=0xff)).unwrap();
         for i in 0..=0xff {
-            assert!(range_obj.element_contained(&i));
+            assert!(range_obj.has_element(&i));
         }
     }
     #[test]
@@ -623,57 +624,57 @@ mod tests {
         assert_eq!(formatted, "[0..=4, 8..=16]");
     }
     #[test]
-    fn single_range_element_contained() {
+    fn single_range_has_element() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         for i in 0..=7 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
         for i in 8..=16 {
-            assert!(range_obj.element_contained(&i));
+            assert!(range_obj.has_element(&i));
         }
         for i in 17..=20 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
     }
     #[test]
-    fn dual_range_singleton_element_contained() {
+    fn dual_range_singleton_has_element() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(4..=4)).unwrap();
         for i in 0..=3 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
-        assert!(range_obj.element_contained(&4));
+        assert!(range_obj.has_element(&4));
         for i in 5..=7 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
         for i in 8..=16 {
-            assert!(range_obj.element_contained(&i));
+            assert!(range_obj.has_element(&i));
         }
         for i in 17..=20 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
     }
     #[test]
-    fn dual_range_element_contained() {
+    fn dual_range_has_element() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(20..=40)).unwrap();
         for i in 0..=7 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
         for i in 8..=16 {
-            assert!(range_obj.element_contained(&i));
+            assert!(range_obj.has_element(&i));
         }
         for i in 17..=19 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
         for i in 20..=40 {
-            assert!(range_obj.element_contained(&i));
+            assert!(range_obj.has_element(&i));
         }
         for i in 41..=50 {
-            assert!(!range_obj.element_contained(&i));
+            assert!(!range_obj.has_element(&i));
         }
     }
 
@@ -682,31 +683,31 @@ mod tests {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
 
-        assert_eq!(range_obj.range_contained(&(0..=7)).unwrap(),OverlapType::Disjoint);
-        assert_eq!(range_obj.range_contained(&(17..=25)).unwrap(),OverlapType::Disjoint);
+        assert_eq!(range_obj.has_range(&(0..=7)).unwrap(),OverlapType::Disjoint);
+        assert_eq!(range_obj.has_range(&(17..=25)).unwrap(),OverlapType::Disjoint);
     }
     #[test]
-    fn single_range_range_contained() {
+    fn single_range_has_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
 
-        assert_eq!(range_obj.range_contained(&(8..=16)).unwrap(),OverlapType::Contained);
-        assert_eq!(range_obj.range_contained(&(8..=11)).unwrap(),OverlapType::Contained);
-        assert_eq!(range_obj.range_contained(&(12..=14)).unwrap(),OverlapType::Contained);
-        assert_eq!(range_obj.range_contained(&(15..=16)).unwrap(),OverlapType::Contained);
+        assert_eq!(range_obj.has_range(&(8..=16)).unwrap(),OverlapType::Contained);
+        assert_eq!(range_obj.has_range(&(8..=11)).unwrap(),OverlapType::Contained);
+        assert_eq!(range_obj.has_range(&(12..=14)).unwrap(),OverlapType::Contained);
+        assert_eq!(range_obj.has_range(&(15..=16)).unwrap(),OverlapType::Contained);
     }
     #[test]
     fn single_range_range_partial() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
 
-        assert_eq!(range_obj.range_contained(&(0..=8)).unwrap(),OverlapType::Partial(1));
-        assert_eq!(range_obj.range_contained(&(0..=9)).unwrap(),OverlapType::Partial(2));
-        assert_eq!(range_obj.range_contained(&(16..=20)).unwrap(),OverlapType::Partial(1));
-        assert_eq!(range_obj.range_contained(&(15..=20)).unwrap(),OverlapType::Partial(2));
-        assert_eq!(range_obj.range_contained(&(0..=24)).unwrap(),OverlapType::Partial(9));
-        assert_eq!(range_obj.range_contained(&(0..=16)).unwrap(),OverlapType::Partial(9));
-        assert_eq!(range_obj.range_contained(&(8..=24)).unwrap(),OverlapType::Partial(9));
+        assert_eq!(range_obj.has_range(&(0..=8)).unwrap(),OverlapType::Partial(1));
+        assert_eq!(range_obj.has_range(&(0..=9)).unwrap(),OverlapType::Partial(2));
+        assert_eq!(range_obj.has_range(&(16..=20)).unwrap(),OverlapType::Partial(1));
+        assert_eq!(range_obj.has_range(&(15..=20)).unwrap(),OverlapType::Partial(2));
+        assert_eq!(range_obj.has_range(&(0..=24)).unwrap(),OverlapType::Partial(9));
+        assert_eq!(range_obj.has_range(&(0..=16)).unwrap(),OverlapType::Partial(9));
+        assert_eq!(range_obj.has_range(&(8..=24)).unwrap(),OverlapType::Partial(9));
     }
     #[test]
     fn multi_range_range_partial() {
@@ -715,28 +716,28 @@ mod tests {
         range_obj.insert_range(&(12..=15)).unwrap();
         range_obj.insert_range(&(20..=23)).unwrap();
 
-        assert_eq!(range_obj.range_contained(&(2..=10)).unwrap(),OverlapType::Partial(4));
-        assert_eq!(range_obj.range_contained(&(4..=10)).unwrap(),OverlapType::Partial(4));
-        assert_eq!(range_obj.range_contained(&(4..=12)).unwrap(),OverlapType::Partial(5));
-        assert_eq!(range_obj.range_contained(&(4..=14)).unwrap(),OverlapType::Partial(7));
-        assert_eq!(range_obj.range_contained(&(4..=15)).unwrap(),OverlapType::Partial(8));
-        assert_eq!(range_obj.range_contained(&(4..=20)).unwrap(),OverlapType::Partial(9));
-        assert_eq!(range_obj.range_contained(&(4..=22)).unwrap(),OverlapType::Partial(11));
-        assert_eq!(range_obj.range_contained(&(4..=23)).unwrap(),OverlapType::Partial(12));
+        assert_eq!(range_obj.has_range(&(2..=10)).unwrap(),OverlapType::Partial(4));
+        assert_eq!(range_obj.has_range(&(4..=10)).unwrap(),OverlapType::Partial(4));
+        assert_eq!(range_obj.has_range(&(4..=12)).unwrap(),OverlapType::Partial(5));
+        assert_eq!(range_obj.has_range(&(4..=14)).unwrap(),OverlapType::Partial(7));
+        assert_eq!(range_obj.has_range(&(4..=15)).unwrap(),OverlapType::Partial(8));
+        assert_eq!(range_obj.has_range(&(4..=20)).unwrap(),OverlapType::Partial(9));
+        assert_eq!(range_obj.has_range(&(4..=22)).unwrap(),OverlapType::Partial(11));
+        assert_eq!(range_obj.has_range(&(4..=23)).unwrap(),OverlapType::Partial(12));
 
-        assert_eq!(range_obj.range_contained(&(5..=23)).unwrap(),OverlapType::Partial(11));
-        assert_eq!(range_obj.range_contained(&(7..=23)).unwrap(),OverlapType::Partial(9));
+        assert_eq!(range_obj.has_range(&(5..=23)).unwrap(),OverlapType::Partial(11));
+        assert_eq!(range_obj.has_range(&(7..=23)).unwrap(),OverlapType::Partial(9));
     }
     #[test]
-    fn dual_range_singleton_range_contained() {
+    fn dual_range_singleton_has_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(8..=16)).unwrap();
         range_obj.insert_range(&(4..=4)).unwrap();
-        assert!(range_obj.range_contained(&(0..=3)).unwrap()==OverlapType::Disjoint);
-        assert!(range_obj.range_contained(&(4..=4)).unwrap()==OverlapType::Contained);
-        assert!(range_obj.range_contained(&(5..=7)).unwrap()==OverlapType::Disjoint);
-        assert!(range_obj.range_contained(&(8..=16)).unwrap()==OverlapType::Contained);
-        assert!(range_obj.range_contained(&(17..=20)).unwrap()==OverlapType::Disjoint);
+        assert!(range_obj.has_range(&(0..=3)).unwrap()==OverlapType::Disjoint);
+        assert!(range_obj.has_range(&(4..=4)).unwrap()==OverlapType::Contained);
+        assert!(range_obj.has_range(&(5..=7)).unwrap()==OverlapType::Disjoint);
+        assert!(range_obj.has_range(&(8..=16)).unwrap()==OverlapType::Contained);
+        assert!(range_obj.has_range(&(17..=20)).unwrap()==OverlapType::Disjoint);
     }
     #[test]
     fn insert_contained_range_over_single_range() {
