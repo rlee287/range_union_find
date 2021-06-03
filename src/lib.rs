@@ -39,17 +39,16 @@ impl fmt::Display for RangeOperationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let description_str = match self {
             RangeOperationError::HasUnbounded =>
-                "Range is unbounded",
+                "range is unbounded",
             RangeOperationError::WouldOverflow =>
-                "Range normalization would overflow type",
+                "range normalization would overflow type",
             RangeOperationError::IsDecreasingOrEmpty =>
-                "Range has no elements"
+                "range has no elements"
         };
         write!(f, "{}", description_str)
     }
 }
 impl Error for RangeOperationError {}
-// Handwritten Display impl?
 
 /// Enum describing what location an element has in a range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
