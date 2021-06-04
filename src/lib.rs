@@ -143,6 +143,8 @@ where
     /// The enum indicates where the element is in the range, with
     /// `(Exterior,i)` meaning the exterior region before the i'th range.
     /// See [`ContainedType`] for an explanation of the enum values.
+    /// 
+    /// If the element is in a single-element range, the enum will not be `Exterior`, but its exact value is otherwise unspecified.
     ///
     /// # Example
     ///
@@ -160,6 +162,15 @@ where
     ///     (ContainedType::End, 0));
     /// assert_eq!(range_obj.has_element_enum(&25),
     ///     (ContainedType::Exterior, 1));
+    /// ```
+    /// 
+    /// ```
+    /// # use range_union_find::*;
+    /// let mut range_obj = IntRangeUnionFind::new();
+    /// range_obj.insert_range(&(8..=8));
+    /// let (contain_enum, contain_id) = range_obj.has_element_enum(&8);
+    /// assert_ne!(contain_enum, ContainedType::Exterior);
+    /// assert_eq!(contain_id, 0);
     /// ```
     pub fn has_element_enum(&self, element: &T) -> (ContainedType, usize) {
         assert!(self.range_storage.len() % 2 == 0);
