@@ -143,6 +143,8 @@ where
     /// The enum indicates where the element is in the range, with
     /// `(Exterior,i)` meaning the exterior region before the i'th range.
     /// See [`ContainedType`] for an explanation of the enum values.
+    /// 
+    /// If the element is in a single-element range, the enum will not be `Exterior`, but its exact value is otherwise unspecified.
     ///
     /// # Example
     ///
