@@ -368,6 +368,7 @@ where
     /// Functions like [`Self::insert_range`] given input `start..=end`.
     pub fn insert_range_pair(&mut self, start: &T, end: &T)
             -> Result<(), RangeOperationError> {
+        assert!(self.range_storage.len() % 2 == 0);
         if start > end {
             return Err(RangeOperationError::IsDecreasingOrEmpty);
         }
@@ -375,29 +376,34 @@ where
             OverlapType::Disjoint => {
                 // Use match arms to catch potential overflows
                 let prev_adj = match *start == T::min_value() {
-                    true => Err(0), // contained value is dontcare
+                    true => Err(0), // start index, guaranteed not present
                     false => self.range_storage.binary_search(&(*start-T::one()))
                 };
                 let next_adj = match *end == T::max_value() {
-                    true => Err(0), // contained value is dontcare
+                    true => Err(self.range_storage.len()), // end index, guaranteed not present
                     false => self.range_storage.binary_search(&(*end+T::one()))
                 };
                 if let (Ok(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
                     // Element fills gap between ranges
+                    assert_eq!(prev_val % 2, 1);
+                    assert_eq!(next_val % 2, 0);
                     let index_remove = prev_val;
                     assert!(index_remove + 1 == next_val);
                     // Remove both endpoints
-                    self.range_storage.remove_index(index_remove);
-                    self.range_storage.remove_index(index_remove);
+                    self.range_storage.drain(index_remove..=index_remove+1);
                 } else if let Ok(prev_val) = prev_adj {
+                    assert_eq!(prev_val % 2, 1);
                     // Extend start range by one, and insert other end
                     self.range_storage.remove_index(prev_val);
                     self.range_storage.insert(*end);
                 } else if let Ok(next_val) = next_adj {
+                    assert_eq!(next_val % 2, 0);
                     // Extend end range by one, and insert other end
                     self.range_storage.remove_index(next_val);
                     self.range_storage.insert(*start);
                 } else {
+                    assert_eq!(prev_adj.unwrap_err() % 2, 0);
+                    assert_eq!(prev_adj.unwrap_err(), next_adj.unwrap_err());
                     // Insert entirely new range
                     self.range_storage.insert(*start);
                     self.range_storage.insert(*end);
@@ -443,7 +449,7 @@ where
                     // Adjacency to the other end handled by interior deletion logic
                 } // else we do not need to adjust the end point
 
-                // Delete intermediate ranges
+                // Subsume intermediate ranges
                 if end_range_id != start_range_id {
                     let middle_range_count = (end_range_id-start_range_id+1)-2;
                     let del_range = 2*start_range_id+1
