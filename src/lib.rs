@@ -410,51 +410,66 @@ where
                 }
             }
             OverlapType::Partial(_) => {
+                // Subsume all the intermediate ranges in the middle
+                let del_index_start = {
+                    let (_, start_range_id) = self.has_element_enum(&start);
+                    2*start_range_id+1
+                };
+                let del_index_end = {
+                    let (end_enum, end_range_id) = self.has_element_enum(&end);
+                    2*match end_enum {
+                        ContainedType::Exterior => {
+                            // end_range_id==0 -> range isn't partial
+                            debug_assert_ne!(end_range_id, 0);
+                            end_range_id-1
+                        },
+                        _ => end_range_id
+                    }
+                };
+                if del_index_end > del_index_start {
+                    assert!((del_index_end - del_index_start + 1) % 2 == 0);
+                    self.range_storage.drain(del_index_start..=del_index_end);
+                } else {
+                    assert_eq!(del_index_start, del_index_end + 1);
+                }
+
+                // Adjust the start point
                 let (start_enum, start_range_id) = self.has_element_enum(&start);
                 if start_enum == ContainedType::Exterior {
-                    let old_index_rm = 2*start_range_id;
+                    let index_rm = 2*start_range_id;
                     if start_range_id > 0
-                            && self.range_storage[old_index_rm-1] == *start-T::one() {
-                        // End of prev range is adjacent to new insert
-                        self.range_storage.drain(old_index_rm-1..=old_index_rm);
+                            && self.range_storage[index_rm-1] == *start-T::one() {
+                        // End of prev range is adjacent to new one-merge ranges
+                        // Removing gap is justified because overlap is partial
+                        // start_range_id > 0 -> ranges do not involve 0
+                        self.range_storage.drain(index_rm-1..=index_rm);
                     } else {
                         // Extend range with new starting position
-                        let old_element = self.range_storage[old_index_rm];
+                        let old_element = self.range_storage[index_rm];
                         let insert_pos = self.range_storage.insert(*start);
-                        assert!(insert_pos == old_index_rm);
-                        let removed_element = self.range_storage.remove_index(old_index_rm+1);
+                        assert_eq!(insert_pos, index_rm);
+                        let removed_element = self.range_storage.remove_index(index_rm+1);
                         assert!(old_element == removed_element);
                     }
-                    // Adjacency to the other end handled by interior deletion logic
-                } // else we do not need to adjust the start point
-
-                // Compute end range id here here as it may be different after begin operations
+                }
+                // Adjust the end point
                 let (end_enum, end_range_id) = self.has_element_enum(&end);
                 if end_enum == ContainedType::Exterior {
                     // end_range_id==0 -> range isn't partial
-                    assert_ne!(end_range_id, 0);
+                    debug_assert_ne!(end_range_id, 0);
                     let old_index_rm = 2*(end_range_id-1)+1;
                     if old_index_rm < (self.range_storage.len()-1)
                             && self.range_storage[old_index_rm+1] == *end+T::one() {
-                        // Start of next range is adjacent to new insert
+                        // Start of next range is adjacent to inserted range
                         self.range_storage.drain(old_index_rm..=old_index_rm+1);
                     } else {
                         // Extend range with new ending position
                         let old_element = self.range_storage[old_index_rm];
                         let insert_pos = self.range_storage.insert(*end);
-                        assert!(insert_pos == old_index_rm+1);
+                        assert_eq!(insert_pos, old_index_rm+1);
                         let removed_element = self.range_storage.remove_index(old_index_rm);
                         assert!(old_element == removed_element);
                     }
-                    // Adjacency to the other end handled by interior deletion logic
-                } // else we do not need to adjust the end point
-
-                // Subsume intermediate ranges
-                if end_range_id != start_range_id {
-                    let middle_range_count = (end_range_id-start_range_id+1)-2;
-                    let del_range = 2*start_range_id+1
-                        ..2*start_range_id+1+2*middle_range_count;
-                    self.range_storage.drain(del_range);
                 }
             }
             OverlapType::Contained => {
