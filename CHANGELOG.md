@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.2
+- Fix major bugs in insertion code
+
 ## v0.2.1
 - Nicer prints (`Debug` panic on invalid struct, and Error `Display`)
 - Use `drain` when removing internal elements for slightly improved performance
