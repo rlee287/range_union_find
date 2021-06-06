@@ -602,15 +602,23 @@ mod tests {
         for i in 0..=0xff {
             assert!(range_obj.has_element(&i));
         }
+        assert_eq!(range_obj.has_range(&(0..=0xff)).unwrap(),
+            OverlapType::Contained);
     }
     #[test]
-    fn insert_bad_range() {
+    fn reject_bad_ranges() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(5..=2)).unwrap_err();
         range_obj.insert_range_pair(&5, &2).unwrap_err();
         range_obj.insert_range(&(1..)).unwrap_err();
         range_obj.insert_range(&(..3)).unwrap_err();
         range_obj.insert_range(&(..)).unwrap_err();
+
+        range_obj.has_range(&(5..=2)).unwrap_err();
+        range_obj.has_range_pair(&5, &2).unwrap_err();
+        range_obj.has_range(&(1..)).unwrap_err();
+        range_obj.has_range(&(..3)).unwrap_err();
+        range_obj.has_range(&(..)).unwrap_err();
     }
     #[test]
     fn make_from_iter() {
@@ -770,6 +778,8 @@ mod tests {
         assert!(range_obj.has_range(&(5..=7)).unwrap()==OverlapType::Disjoint);
         assert!(range_obj.has_range(&(8..=16)).unwrap()==OverlapType::Contained);
         assert!(range_obj.has_range(&(17..=20)).unwrap()==OverlapType::Disjoint);
+
+        assert!(range_obj.has_range(&(0..8)).unwrap()==OverlapType::Partial(1));
     }
     #[test]
     fn insert_contained_range_over_single_range() {
@@ -804,6 +814,14 @@ mod tests {
 
         let mut range_obj_single = IntRangeUnionFind::<u32>::new();
         range_obj_single.insert_range(&(8..=24)).unwrap();
+        assert_eq!(range_obj, range_obj_single);
+
+        let mut range_obj = IntRangeUnionFind::<u32>::new();
+        range_obj.insert_range(&(8..=16)).unwrap();
+        range_obj.insert_range(&(0..=24)).unwrap();
+
+        let mut range_obj_single = IntRangeUnionFind::<u32>::new();
+        range_obj_single.insert_range(&(0..=24)).unwrap();
         assert_eq!(range_obj, range_obj_single);
     }
     #[test]
