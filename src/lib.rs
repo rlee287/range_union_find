@@ -802,11 +802,24 @@ mod tests {
         assert_eq!(range_obj, range_obj_final);
     }
     #[test]
+    fn insert_partial_overarch_full_valuespan() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(0..=0)).unwrap();
+        range_obj.insert_range(&(0xff..=0xff)).unwrap();
+
+        range_obj.insert_range(&(0..=0xff)).unwrap();
+
+        let mut range_obj_final = IntRangeUnionFind::<u8>::new();
+        range_obj_final.insert_range(&(0..=0xff)).unwrap();
+        assert_eq!(range_obj, range_obj_final);
+    }
+    #[test]
     fn insert_partial_overarch_adj_range_over_dual_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(12..=16)).unwrap();
         range_obj.insert_range(&(4..=8)).unwrap();
         let mut range_obj_2 = range_obj.clone();
+        let mut range_obj_3 = range_obj.clone();
 
         range_obj.insert_range(&(0..=11)).unwrap();
 
@@ -818,12 +831,18 @@ mod tests {
         let mut range_obj_final = IntRangeUnionFind::<u32>::new();
         range_obj_final.insert_range(&(4..=20)).unwrap();
         assert_eq!(range_obj_2, range_obj_final);
+
+        range_obj_3.insert_range(&(4..=16)).unwrap();
+        let mut range_obj_final = IntRangeUnionFind::<u32>::new();
+        range_obj_final.insert_range(&(4..=16)).unwrap();
+        assert_eq!(range_obj_3, range_obj_final);
     }
     #[test]
     fn insert_partial_overarch_all_range_over_multi_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
         range_obj.insert_range(&(12..=16)).unwrap();
         range_obj.insert_range(&(4..=8)).unwrap();
+        let mut range_obj_3 = range_obj.clone();
 
         range_obj.insert_range(&(0..=20)).unwrap();
 
@@ -831,15 +850,20 @@ mod tests {
         range_obj_single.insert_range(&(0..=20)).unwrap();
         assert_eq!(range_obj, range_obj_single);
 
-        let mut range_obj = IntRangeUnionFind::<u32>::new();
-        range_obj.insert_range(&(1..=3)).unwrap();
-        range_obj.insert_range(&(5..=7)).unwrap();
-        range_obj.insert_range(&(9..=11)).unwrap();
-        range_obj.insert_range(&(13..=15)).unwrap();
-        range_obj.insert_range(&(17..=19)).unwrap();
+        range_obj_3.insert_range(&(6..=14)).unwrap();
+        let mut range_obj_single_3 = IntRangeUnionFind::<u32>::new();
+        range_obj_single_3.insert_range(&(4..=16)).unwrap();
+        assert_eq!(range_obj_3, range_obj_single_3);
 
-        range_obj.insert_range(&(0..=20)).unwrap();
-        assert_eq!(range_obj, range_obj_single);
+        let mut range_obj_2 = IntRangeUnionFind::<u32>::new();
+        range_obj_2.insert_range(&(0..=3)).unwrap();
+        range_obj_2.insert_range(&(5..=7)).unwrap();
+        range_obj_2.insert_range(&(9..=11)).unwrap();
+        range_obj_2.insert_range(&(13..=15)).unwrap();
+        range_obj_2.insert_range(&(17..=20)).unwrap();
+
+        range_obj_2.insert_range(&(0..=20)).unwrap();
+        assert_eq!(range_obj_2, range_obj_single);
     }
     #[test]
     fn insert_partial_gapfill_range_over_dual_range() {
@@ -866,6 +890,18 @@ mod tests {
         let mut range_obj_combined = IntRangeUnionFind::<u32>::new();
         range_obj_combined.insert_range(&(0..=20)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
+    }
+    #[test]
+    fn insert_single_element_adj_range() {
+        let mut range_obj = IntRangeUnionFind::<u32>::new();
+        range_obj.insert_range(&(11..20)).unwrap();
+        range_obj.insert_range(&(10..=10)).unwrap();
+        range_obj.insert_range(&(20..=20)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u32>::new();
+        expected_obj.insert_range(&(10..=20)).unwrap();
+
+        assert_eq!(expected_obj, range_obj);
     }
 
     #[test]
