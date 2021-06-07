@@ -1071,4 +1071,76 @@ mod tests {
         range_obj_combined.insert_range(&(0..=16)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
     }
+
+    #[test]
+    fn remove_entire_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(4..=12)).unwrap();
+
+        let expected_obj = IntRangeUnionFind::<u8>::new();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_partial_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(4..=7)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(8..=12)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(10..=12)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(4..=9)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(5..=11)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(4..=4)).unwrap();
+        expected_obj.insert_range(&(12..=12)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+    }
+
+    #[test]
+    fn remove_endpoint_overlap_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(4..=4)).unwrap();
+        range_obj.remove_range(&(12..=12)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(5..=11)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_overarch_partial_match() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..8)).unwrap();
+        range_obj.remove_range(&(0..10)).unwrap();
+
+        let expected_obj = IntRangeUnionFind::<u8>::new();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_partial_multiple_ranges() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.remove_range(&(15..=55)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(10..=14)).unwrap();
+        expected_obj.insert_range(&(56..=60)).unwrap();
+
+        assert_eq!(range_obj, expected_obj);
+    }
 }
