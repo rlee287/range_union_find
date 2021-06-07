@@ -741,6 +741,12 @@ mod tests {
         range_obj.has_range(&(1..)).unwrap_err();
         range_obj.has_range(&(..3)).unwrap_err();
         range_obj.has_range(&(..)).unwrap_err();
+
+        range_obj.remove_range(&(5..=2)).unwrap_err();
+        range_obj.remove_range_pair(&5, &2).unwrap_err();
+        range_obj.remove_range(&(1..)).unwrap_err();
+        range_obj.remove_range(&(..3)).unwrap_err();
+        range_obj.remove_range(&(..)).unwrap_err();
     }
     #[test]
     fn make_from_iter() {
@@ -1073,6 +1079,14 @@ mod tests {
     }
 
     #[test]
+    fn remove_disjoint_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..20)).unwrap();
+        let expected_obj = range_obj.clone();
+        range_obj.remove_range(&(0..10)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
     fn remove_entire_single_range() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(4..=12)).unwrap();
@@ -1140,6 +1154,22 @@ mod tests {
         let mut expected_obj = IntRangeUnionFind::<u8>::new();
         expected_obj.insert_range(&(10..=14)).unwrap();
         expected_obj.insert_range(&(56..=60)).unwrap();
+
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_partial_multiple_ranges_rangeswallow() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        range_obj.remove_range(&(30..=60)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(10..=20)).unwrap();
+        expected_obj.insert_range(&(70..=80)).unwrap();
 
         assert_eq!(range_obj, expected_obj);
     }
