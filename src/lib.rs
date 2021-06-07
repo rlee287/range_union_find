@@ -634,7 +634,7 @@ impl<T: PrimInt> BitOr<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
     }
 }
 
-impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for IntRangeUnionFind<T> {
+impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
     type Output = IntRangeUnionFind<T>;
     /// Subtracts the rhs [`IntRangeUnionFind`] object from the lhs one.
     fn sub(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
