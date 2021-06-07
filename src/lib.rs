@@ -634,6 +634,18 @@ impl<T: PrimInt> BitOr<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
     }
 }
 
+impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    /// Subtracts the rhs [`IntRangeUnionFind`] object from the lhs one.
+    fn sub(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let mut dup_obj = self.clone();
+        for range in rhs.to_collection::<Vec<RangeInclusive<T>>>() {
+            dup_obj.remove_range(&range).unwrap();
+        }
+        dup_obj
+    }
+}
+
 impl<T> fmt::Debug for IntRangeUnionFind<T>
 where
     T: PrimInt + fmt::Debug,
