@@ -426,8 +426,11 @@ where
                         _ => end_range_id
                     }
                 };
+                assert!(del_index_start % 2 == 1);
+                assert!(del_index_end % 2 == 0);
                 if del_index_end > del_index_start {
-                    assert!((del_index_end - del_index_start + 1) % 2 == 0);
+                    // Guaranteed by asserts above
+                    //assert!((del_index_end - del_index_start + 1) % 2 == 0);
                     self.range_storage.drain(del_index_start..=del_index_end);
                 } else {
                     assert_eq!(del_index_start, del_index_end + 1);
@@ -474,6 +477,125 @@ where
             }
             OverlapType::Contained => {
                 // Do nothing
+            }
+        }
+        Ok(())
+    }
+
+    /// Removes the range from the set of ranges.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RangeOperationError`] if the given range is invalid.
+    pub fn remove_range<U: RangeBounds<T>>(&mut self, range: &U)
+            -> Result<(), RangeOperationError> {
+        let (input_start, input_end) = match get_normalized_range(range) {
+            Ok((val_start,val_end)) => (val_start,val_end),
+            Err(err) => return Err(err)
+        };
+        self.remove_range_pair(&input_start, &input_end)
+    }
+    /// Functions like [`Self::remove_range`] given input `start..=end`.
+    pub fn remove_range_pair(&mut self, start: &T, end: &T)
+            -> Result<(), RangeOperationError> {
+        assert!(self.range_storage.len() % 2 == 0);
+        if start > end {
+            return Err(RangeOperationError::IsDecreasingOrEmpty);
+        }
+        match self.has_range_pair(&start, &end).unwrap() {
+            OverlapType::Disjoint => {
+                // Do nothing
+            }
+            OverlapType::Partial(_) => {
+                // Delete all the intermediate ranges in the middle
+                let del_index_start = {
+                    let (start_enum, start_range_id) = self.has_element_enum(&start);
+                    match start_enum {
+                        ContainedType::Exterior => 2*start_range_id,
+                        _ => 2*(start_range_id+1)
+                    }
+                };
+                let del_index_end = {
+                    let (_, end_range_id) = self.has_element_enum(&end);
+                    // Exterior -> subtract to the range before
+                    // else -> skip past the range the endpoint lies in
+                    // Computation result is the same regardless
+                    2*end_range_id-1
+                };
+                assert!(del_index_start % 2 == 0);
+                assert!(del_index_end % 2 == 1);
+                if del_index_end > del_index_start {
+                    // Guaranteed by above asserts
+                    //assert!((del_index_end - del_index_start + 1) % 2 == 0);
+                    self.range_storage.drain(del_index_start..=del_index_end);
+                } else {
+                    assert_eq!(del_index_start, del_index_end + 1);
+                }
+
+                // Adjust the start point
+                let (start_enum, start_range_id) = self.has_element_enum(&start);
+                if start_enum == ContainedType::Start {
+                    // Given start lines up with start of a range
+                    // Was partial -> delete this entire range
+                    self.range_storage.drain(
+                        2*start_range_id..=2*start_range_id+1);
+                } else if start_enum != ContainedType::Exterior {
+                    // Move the endpoint to new location
+                    self.range_storage.remove_index(2*start_range_id+1);
+                    let insert_pos = self.range_storage.insert(*start-T::one());
+                    assert_eq!(insert_pos, 2*start_range_id+1);
+                }
+                // Adjust the end point
+                let (end_enum, end_range_id) = self.has_element_enum(&end);
+                if end_enum == ContainedType::End {
+                    // Given end lines up with end of a range
+                    // Was partial -> delete this entire range
+                    self.range_storage.drain(
+                        2*(end_range_id-1)..=2*(end_range_id-1)+1);
+                } else if start_enum != ContainedType::Exterior {
+                    // Move the startpoint to new location
+                    self.range_storage.remove_index(2*end_range_id);
+                    let insert_pos = self.range_storage.insert(*end+T::one());
+                    assert_eq!(insert_pos, 2*end_range_id);
+                }
+            }
+            OverlapType::Contained => {
+                let prev_adj = self.range_storage.binary_search(start);
+                let next_adj = self.range_storage.binary_search(end);
+                if let (Ok(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
+                    if prev_val == next_val {
+                        // Range has single element, equal to an endpoint
+                        let old_endpoint = self.range_storage.remove_index(prev_val);
+                        let replacement_endpoint = match prev_val % 2 {
+                            0 => old_endpoint+T::one(), // Was beginning
+                            1 => old_endpoint-T::one(), // Was end
+                            _ => unreachable!()
+                        };
+                        self.range_storage.insert(replacement_endpoint);
+                    } else {
+                        assert_eq!(prev_val+1, next_val);
+                        // Range exactly matches an existing range
+                        // Remove both endpoints
+                        self.range_storage.remove_index(prev_val);
+                        self.range_storage.remove_index(prev_val);
+                    }
+                } else if let (Ok(prev_val), Err(next_val)) = (prev_adj, next_adj) {
+                    assert_eq!(prev_val+1, next_val);
+                    assert_eq!(prev_val % 2, 0);
+                    // Shrink start range by replacing start point
+                    self.range_storage.remove_index(prev_val);
+                    self.range_storage.insert(*end+T::one());
+                } else if let (Err(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
+                    assert_eq!(prev_val, next_val);
+                    assert_eq!(prev_val % 2, 1);
+                    // Extend end range by one, and insert other end
+                    self.range_storage.remove_index(next_val);
+                    self.range_storage.insert(*start-T::one());
+                } else {
+                    // Subtract entirely new range
+                    self.range_storage.insert(*start-T::one());
+                    self.range_storage.insert(*end+T::one());
+                }
             }
         }
         Ok(())
