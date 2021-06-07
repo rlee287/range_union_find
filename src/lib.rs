@@ -29,8 +29,6 @@ use std::error::Error;
 /// Enum describing how a range may be invalid.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RangeOperationError {
-    /// Range has an unbounded end.
-    HasUnbounded,
     /// Range operation caused an overflow.
     WouldOverflow,
     /// Range is decreasing or empty.
@@ -39,8 +37,6 @@ pub enum RangeOperationError {
 impl fmt::Display for RangeOperationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let description_str = match self {
-            RangeOperationError::HasUnbounded =>
-                "range is unbounded",
             RangeOperationError::WouldOverflow =>
                 "range normalization would overflow type",
             RangeOperationError::IsDecreasingOrEmpty =>
@@ -86,7 +82,7 @@ where
             true => return Err(RangeOperationError::WouldOverflow),
             false => *val+T::one()
         }
-        Bound::Unbounded => return Err(RangeOperationError::HasUnbounded)
+        Bound::Unbounded => T::min_value()
     };
     let end = match range.end_bound() {
         Bound::Included(val) => *val,
@@ -94,7 +90,7 @@ where
             true => return Err(RangeOperationError::WouldOverflow),
             false => *val-T::one()
         }
-        Bound::Unbounded => return Err(RangeOperationError::HasUnbounded)
+        Bound::Unbounded => T::max_value()
     };
     if start > end {
         Err(RangeOperationError::IsDecreasingOrEmpty)
@@ -731,27 +727,22 @@ mod tests {
         }
         assert_eq!(range_obj.has_range(&(0..=0xff)).unwrap(),
             OverlapType::Contained);
+
+        let mut unbounded_range_obj = IntRangeUnionFind::<u8>::new();
+        unbounded_range_obj.insert_range(&(..)).unwrap();
+        assert_eq!(range_obj, unbounded_range_obj);
     }
     #[test]
     fn reject_bad_ranges() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(5..=2)).unwrap_err();
         range_obj.insert_range_pair(&5, &2).unwrap_err();
-        range_obj.insert_range(&(1..)).unwrap_err();
-        range_obj.insert_range(&(..3)).unwrap_err();
-        range_obj.insert_range(&(..)).unwrap_err();
 
         range_obj.has_range(&(5..=2)).unwrap_err();
         range_obj.has_range_pair(&5, &2).unwrap_err();
-        range_obj.has_range(&(1..)).unwrap_err();
-        range_obj.has_range(&(..3)).unwrap_err();
-        range_obj.has_range(&(..)).unwrap_err();
 
         range_obj.remove_range(&(5..=2)).unwrap_err();
         range_obj.remove_range_pair(&5, &2).unwrap_err();
-        range_obj.remove_range(&(1..)).unwrap_err();
-        range_obj.remove_range(&(..3)).unwrap_err();
-        range_obj.remove_range(&(..)).unwrap_err();
     }
     #[test]
     fn make_from_iter() {
