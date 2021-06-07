@@ -1180,4 +1180,23 @@ mod tests {
 
         assert_eq!(range_obj, expected_obj);
     }
+    #[test]
+    fn remove_sub_equivalence() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        let full_obj = range_obj.clone();
+        range_obj.remove_range(&(30..=60)).unwrap();
+        range_obj.remove_range(&(11..16)).unwrap();
+
+        let mut range_rhs = IntRangeUnionFind::<u8>::new();
+        range_rhs.insert_range(&(30..=60)).unwrap();
+        range_rhs.insert_range(&(11..16)).unwrap();
+
+        let sub_obj = &full_obj - &range_rhs;
+        assert_eq!(range_obj, sub_obj);
+    }
 }
