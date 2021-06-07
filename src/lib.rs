@@ -17,7 +17,7 @@
 //! 
 //! All the functionality is in the [`IntRangeUnionFind`] struct (though we may add `RangeUnionFind` structs for different element types in the future).
 use std::ops::{Bound, RangeBounds, RangeInclusive};
-use std::ops::{BitOr, BitOrAssign};
+use std::ops::{BitOr, Sub};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
 use std::iter::FromIterator;
@@ -426,8 +426,11 @@ where
                         _ => end_range_id
                     }
                 };
+                assert!(del_index_start % 2 == 1);
+                assert!(del_index_end % 2 == 0);
                 if del_index_end > del_index_start {
-                    assert!((del_index_end - del_index_start + 1) % 2 == 0);
+                    // Guaranteed by asserts above
+                    //assert!((del_index_end - del_index_start + 1) % 2 == 0);
                     self.range_storage.drain(del_index_start..=del_index_end);
                 } else {
                     assert_eq!(del_index_start, del_index_end + 1);
@@ -479,6 +482,125 @@ where
         Ok(())
     }
 
+    /// Removes the range from the set of ranges.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RangeOperationError`] if the given range is invalid.
+    pub fn remove_range<U: RangeBounds<T>>(&mut self, range: &U)
+            -> Result<(), RangeOperationError> {
+        let (input_start, input_end) = match get_normalized_range(range) {
+            Ok((val_start,val_end)) => (val_start,val_end),
+            Err(err) => return Err(err)
+        };
+        self.remove_range_pair(&input_start, &input_end)
+    }
+    /// Functions like [`Self::remove_range`] given input `start..=end`.
+    pub fn remove_range_pair(&mut self, start: &T, end: &T)
+            -> Result<(), RangeOperationError> {
+        assert!(self.range_storage.len() % 2 == 0);
+        if start > end {
+            return Err(RangeOperationError::IsDecreasingOrEmpty);
+        }
+        match self.has_range_pair(&start, &end).unwrap() {
+            OverlapType::Disjoint => {
+                // Do nothing
+            }
+            OverlapType::Partial(_) => {
+                // Delete all the intermediate ranges in the middle
+                let del_index_start = {
+                    let (start_enum, start_range_id) = self.has_element_enum(&start);
+                    match start_enum {
+                        ContainedType::Exterior => 2*start_range_id,
+                        _ => 2*(start_range_id+1)
+                    }
+                };
+                let del_index_end = {
+                    let (_, end_range_id) = self.has_element_enum(&end);
+                    // Exterior -> subtract to the range before
+                    // else -> skip past the range the endpoint lies in
+                    // Computation result is the same regardless
+                    2*end_range_id-1
+                };
+                assert!(del_index_start % 2 == 0);
+                assert!(del_index_end % 2 == 1);
+                if del_index_end > del_index_start {
+                    // Guaranteed by above asserts
+                    //assert!((del_index_end - del_index_start + 1) % 2 == 0);
+                    self.range_storage.drain(del_index_start..=del_index_end);
+                } else {
+                    assert_eq!(del_index_start, del_index_end + 1);
+                }
+
+                // Adjust the start point
+                let (start_enum, start_range_id) = self.has_element_enum(&start);
+                if start_enum == ContainedType::Start {
+                    // Given start lines up with start of a range
+                    // Was partial -> delete this entire range
+                    self.range_storage.drain(
+                        2*start_range_id..=2*start_range_id+1);
+                } else if start_enum != ContainedType::Exterior {
+                    // Move the endpoint to new location
+                    self.range_storage.remove_index(2*start_range_id+1);
+                    let insert_pos = self.range_storage.insert(*start-T::one());
+                    assert_eq!(insert_pos, 2*start_range_id+1);
+                }
+                // Adjust the end point
+                let (end_enum, end_range_id) = self.has_element_enum(&end);
+                if end_enum == ContainedType::End {
+                    // Given end lines up with end of a range
+                    // Was partial -> delete this entire range
+                    self.range_storage.drain(
+                        2*end_range_id..=2*end_range_id+1);
+                } else if start_enum != ContainedType::Exterior {
+                    // Move the startpoint to new location
+                    self.range_storage.remove_index(2*end_range_id);
+                    let insert_pos = self.range_storage.insert(*end+T::one());
+                    assert_eq!(insert_pos, 2*end_range_id);
+                }
+            }
+            OverlapType::Contained => {
+                let prev_adj = self.range_storage.binary_search(start);
+                let next_adj = self.range_storage.binary_search(end);
+                if let (Ok(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
+                    if prev_val == next_val {
+                        // Range has single element, equal to an endpoint
+                        let old_endpoint = self.range_storage.remove_index(prev_val);
+                        let replacement_endpoint = match prev_val % 2 {
+                            0 => old_endpoint+T::one(), // Was beginning
+                            1 => old_endpoint-T::one(), // Was end
+                            _ => unreachable!()
+                        };
+                        self.range_storage.insert(replacement_endpoint);
+                    } else {
+                        assert_eq!(prev_val+1, next_val);
+                        // Range exactly matches an existing range
+                        // Remove both endpoints
+                        self.range_storage.remove_index(prev_val);
+                        self.range_storage.remove_index(prev_val);
+                    }
+                } else if let (Ok(prev_val), Err(next_val)) = (prev_adj, next_adj) {
+                    assert_eq!(prev_val+1, next_val);
+                    assert_eq!(prev_val % 2, 0);
+                    // Shrink start range by replacing start point
+                    self.range_storage.remove_index(prev_val);
+                    self.range_storage.insert(*end+T::one());
+                } else if let (Err(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
+                    assert_eq!(prev_val, next_val);
+                    assert_eq!(prev_val % 2, 1);
+                    // Extend end range by one, and insert other end
+                    self.range_storage.remove_index(next_val);
+                    self.range_storage.insert(*start-T::one());
+                } else {
+                    // Subtract entirely new range
+                    self.range_storage.insert(*start-T::one());
+                    self.range_storage.insert(*end+T::one());
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Creates a collection of [`RangeInclusive`] with element type `T` from a [`IntRangeUnionFind`] object.
     pub fn to_collection<U>(&self) -> U
     where
@@ -502,19 +624,24 @@ where
     }
 }
 
-impl<T: PrimInt> BitOrAssign for IntRangeUnionFind<T> {
-    /// Extends the [`IntRangeUnionFind`] object with the ranges of `rhs`.
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
+impl<T: PrimInt> BitOr<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    /// Computes the union of the two [`IntRangeUnionFind`] objects.
+    fn bitor(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let mut dup_obj = self.clone();
+        dup_obj.extend(rhs.to_collection::<Vec<RangeInclusive<T>>>());
+        dup_obj
     }
 }
 
-impl<T: PrimInt> BitOr for IntRangeUnionFind<T> {
-    type Output = Self;
-    /// Computes the union of the two [`IntRangeUnionFind`] objects.
-    fn bitor(self, rhs: Self) -> Self::Output {
-        let mut dup_obj = self;
-        dup_obj.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
+impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    /// Subtracts the rhs [`IntRangeUnionFind`] object from the lhs one.
+    fn sub(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let mut dup_obj = self.clone();
+        for range in rhs.to_collection::<Vec<RangeInclusive<T>>>() {
+            dup_obj.remove_range(&range).unwrap();
+        }
         dup_obj
     }
 }
@@ -619,6 +746,12 @@ mod tests {
         range_obj.has_range(&(1..)).unwrap_err();
         range_obj.has_range(&(..3)).unwrap_err();
         range_obj.has_range(&(..)).unwrap_err();
+
+        range_obj.remove_range(&(5..=2)).unwrap_err();
+        range_obj.remove_range_pair(&5, &2).unwrap_err();
+        range_obj.remove_range(&(1..)).unwrap_err();
+        range_obj.remove_range(&(..3)).unwrap_err();
+        range_obj.remove_range(&(..)).unwrap_err();
     }
     #[test]
     fn make_from_iter() {
@@ -649,12 +782,13 @@ mod tests {
         range_obj_first.insert_range(&(1..=3)).unwrap();
         let mut range_obj_build = range_obj_first.clone();
 
-        let range_obj_final = range_obj_first | range_obj_second.clone();
+        let range_obj_final = &range_obj_first | &range_obj_second;
         assert_eq!(range_obj_full, range_obj_final);
 
-        range_obj_build |= range_obj_second;
+        range_obj_build = &range_obj_build | &range_obj_second;
         assert_eq!(range_obj_full, range_obj_build);
     }
+
     #[test]
     fn print_dual_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
@@ -663,6 +797,7 @@ mod tests {
         let formatted = format!("{:?}",range_obj);
         assert_eq!(formatted, "[0..=4, 8..=16]");
     }
+
     #[test]
     fn single_range_has_element() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
@@ -781,6 +916,7 @@ mod tests {
 
         assert!(range_obj.has_range(&(0..8)).unwrap()==OverlapType::Partial(1));
     }
+
     #[test]
     fn insert_contained_range_over_single_range() {
         let mut range_obj_old = IntRangeUnionFind::<u32>::new();
@@ -948,5 +1084,119 @@ mod tests {
         let mut range_obj_combined = IntRangeUnionFind::<u32>::new();
         range_obj_combined.insert_range(&(0..=16)).unwrap();
         assert_eq!(range_obj, range_obj_combined);
+    }
+
+    #[test]
+    fn remove_disjoint_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..20)).unwrap();
+        let expected_obj = range_obj.clone();
+        range_obj.remove_range(&(0..10)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_entire_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(4..=12)).unwrap();
+
+        let expected_obj = IntRangeUnionFind::<u8>::new();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_partial_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(4..=7)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(8..=12)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(10..=12)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(4..=9)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(5..=11)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(4..=4)).unwrap();
+        expected_obj.insert_range(&(12..=12)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_endpoint_overlap_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        range_obj.remove_range(&(4..=4)).unwrap();
+        range_obj.remove_range(&(12..=12)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(5..=11)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_overarch_partial_match() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..8)).unwrap();
+        range_obj.remove_range(&(0..10)).unwrap();
+
+        let expected_obj = IntRangeUnionFind::<u8>::new();
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_partial_multiple_ranges() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.remove_range(&(15..=55)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(10..=14)).unwrap();
+        expected_obj.insert_range(&(56..=60)).unwrap();
+
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_partial_multiple_ranges_rangeswallow() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        range_obj.remove_range(&(30..=60)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(10..=20)).unwrap();
+        expected_obj.insert_range(&(70..=80)).unwrap();
+
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
+    fn remove_sub_equivalence() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        let full_obj = range_obj.clone();
+        range_obj.remove_range(&(30..=60)).unwrap();
+        range_obj.remove_range(&(11..16)).unwrap();
+
+        let mut range_rhs = IntRangeUnionFind::<u8>::new();
+        range_rhs.insert_range(&(30..=60)).unwrap();
+        range_rhs.insert_range(&(11..16)).unwrap();
+
+        let sub_obj = &full_obj - &range_rhs;
+        assert_eq!(range_obj, sub_obj);
     }
 }
