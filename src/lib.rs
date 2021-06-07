@@ -782,12 +782,13 @@ mod tests {
         range_obj_first.insert_range(&(1..=3)).unwrap();
         let mut range_obj_build = range_obj_first.clone();
 
-        let range_obj_final = &range_obj_first | &range_obj_second.clone();
+        let range_obj_final = &range_obj_first | &range_obj_second;
         assert_eq!(range_obj_full, range_obj_final);
 
         range_obj_build = &range_obj_build | &range_obj_second;
         assert_eq!(range_obj_full, range_obj_build);
     }
+
     #[test]
     fn print_dual_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
@@ -796,6 +797,7 @@ mod tests {
         let formatted = format!("{:?}",range_obj);
         assert_eq!(formatted, "[0..=4, 8..=16]");
     }
+
     #[test]
     fn single_range_has_element() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
@@ -914,6 +916,7 @@ mod tests {
 
         assert!(range_obj.has_range(&(0..8)).unwrap()==OverlapType::Partial(1));
     }
+
     #[test]
     fn insert_contained_range_over_single_range() {
         let mut range_obj_old = IntRangeUnionFind::<u32>::new();
@@ -1127,7 +1130,6 @@ mod tests {
         expected_obj.insert_range(&(12..=12)).unwrap();
         assert_eq!(range_obj, expected_obj);
     }
-
     #[test]
     fn remove_endpoint_overlap_single_range() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
