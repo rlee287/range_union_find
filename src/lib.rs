@@ -17,7 +17,7 @@
 //! 
 //! All the functionality is in the [`IntRangeUnionFind`] struct (though we may add `RangeUnionFind` structs for different element types in the future).
 use std::ops::{Bound, RangeBounds, RangeInclusive};
-use std::ops::{BitOr, BitOrAssign};
+use std::ops::{BitOr, Sub};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
 use std::iter::FromIterator;
@@ -624,19 +624,12 @@ where
     }
 }
 
-impl<T: PrimInt> BitOrAssign for IntRangeUnionFind<T> {
-    /// Extends the [`IntRangeUnionFind`] object with the ranges of `rhs`.
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
-    }
-}
-
-impl<T: PrimInt> BitOr for IntRangeUnionFind<T> {
-    type Output = Self;
+impl<T: PrimInt> BitOr<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
     /// Computes the union of the two [`IntRangeUnionFind`] objects.
-    fn bitor(self, rhs: Self) -> Self::Output {
-        let mut dup_obj = self;
-        dup_obj.extend(rhs.into_collection::<Vec<RangeInclusive<T>>>());
+    fn bitor(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let mut dup_obj = self.clone();
+        dup_obj.extend(rhs.to_collection::<Vec<RangeInclusive<T>>>());
         dup_obj
     }
 }
@@ -777,10 +770,10 @@ mod tests {
         range_obj_first.insert_range(&(1..=3)).unwrap();
         let mut range_obj_build = range_obj_first.clone();
 
-        let range_obj_final = range_obj_first | range_obj_second.clone();
+        let range_obj_final = &range_obj_first | &range_obj_second.clone();
         assert_eq!(range_obj_full, range_obj_final);
 
-        range_obj_build |= range_obj_second;
+        range_obj_build = &range_obj_build | &range_obj_second;
         assert_eq!(range_obj_full, range_obj_build);
     }
     #[test]
