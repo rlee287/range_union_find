@@ -548,7 +548,7 @@ where
                     // Was partial -> delete this entire range
                     self.range_storage.drain(
                         2*end_range_id..=2*end_range_id+1);
-                } else if start_enum != ContainedType::Exterior {
+                } else if end_enum != ContainedType::Exterior {
                     // Move the startpoint to new location
                     self.range_storage.remove_index(2*end_range_id);
                     let insert_pos = self.range_storage.insert(*end+T::one());
