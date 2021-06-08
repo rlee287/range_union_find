@@ -517,18 +517,26 @@ where
                     // Exterior -> subtract to the range before
                     // else -> skip past the range the endpoint lies in
                     // Computation result is the same regardless
-                    2*end_range_id-1
+                    // Saturating sub+equality check below to catch overflow
+                    (2*end_range_id).saturating_sub(1)
                 };
-                assert!(del_index_start % 2 == 0);
-                assert!(del_index_end % 2 == 1);
+                // These should be true, except for overflow prevention
+                //assert!(del_index_start % 2 == 0);
+                //assert!(del_index_end % 2 == 1);
                 if del_index_end > del_index_start {
                     // Guaranteed by above asserts
                     //assert!((del_index_end - del_index_start + 1) % 2 == 0);
                     self.range_storage.drain(del_index_start..=del_index_end);
-                } else {
+                } else if del_index_end < del_index_start {
                     assert_eq!(del_index_start, del_index_end + 1);
+                } else {
+                    // "Correct" behavior: start=0 and end=-1
+                    // This is also the only time this branch should ever be taken
+                    assert_eq!(del_index_start, 0);
+                    assert_eq!(del_index_end, 0);
                 }
 
+                // TODO: this part may break/work "accidentally" in overflow edge cases
                 // Adjust the start point
                 let (start_enum, start_range_id) = self.has_element_enum(&start);
                 if start_enum == ContainedType::Start {
