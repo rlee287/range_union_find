@@ -1334,4 +1334,61 @@ mod tests {
         expected_obj.insert_range(&(30..=34)).unwrap();
         assert_eq!(anded_obj_1, expected_obj);
     }
+
+    #[test]
+    fn inverse_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+
+        let mut expected_inverted_range = IntRangeUnionFind::<u8>::new();
+        expected_inverted_range.insert_range(&(..=9)).unwrap();
+        expected_inverted_range.insert_range(&(21..)).unwrap();
+
+        assert_eq!(!&range_obj, expected_inverted_range);
+    }
+
+    #[test]
+    fn xor_partial() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+
+        let mut rhs_obj = IntRangeUnionFind::<u8>::new();
+        rhs_obj.insert_range(&(15..=25)).unwrap();
+
+        assert_eq!(&range_obj ^ &rhs_obj, &rhs_obj ^ &range_obj);
+
+        let mut expected_xor_obj = IntRangeUnionFind::<u8>::new();
+        expected_xor_obj.insert_range(&(10..=14)).unwrap();
+        expected_xor_obj.insert_range(&(21..=25)).unwrap();
+
+        assert_eq!(&range_obj ^ &rhs_obj, expected_xor_obj);
+    }
+
+    #[test]
+    fn range_set_boolean_ops_demorgan() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        let mut range_obj_2 = IntRangeUnionFind::<u8>::new();
+        range_obj_2.insert_range(&(30..=60)).unwrap();
+        range_obj_2.insert_range(&(11..16)).unwrap();
+
+        let range_obj_or_given = &range_obj | &range_obj_2;
+        let range_obj_and_given = &range_obj & &range_obj_2;
+        let range_obj_xor_given = &range_obj ^ &range_obj_2;
+
+        assert_eq!(range_obj_xor_given, &range_obj_or_given - &range_obj_and_given);
+
+        let range_obj_or_then_not = !&range_obj_or_given;
+        let range_obj_and_then_not = !&range_obj_and_given;
+
+        let range_obj_not_then_or = &!&range_obj | &!&range_obj_2;
+        let range_obj_not_then_and = &!&range_obj & &!&range_obj_2;
+
+        assert_eq!(range_obj_not_then_and, range_obj_or_then_not);
+        assert_eq!(range_obj_not_then_or, range_obj_and_then_not);
+    }
 }
