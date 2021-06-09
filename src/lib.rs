@@ -200,6 +200,15 @@ where
             (ContainedType::Exterior, _))
     }
 
+    fn is_range_singleton(&self, range_id: usize) -> Option<bool> {
+        let (start, end) = match self.range_storage.get(2*range_id..=2*range_id+1) {
+            None => return None,
+            Some([a, b]) => (a, b),
+            _ => unreachable!()
+        };
+        Some(start == end)
+    }
+
     /// Returns how the given range overlaps with the stored ranges.
     /// See [`OverlapType`] for a description of the enum values.
     /// 
@@ -539,7 +548,8 @@ where
                 // TODO: this part may break/work "accidentally" in overflow edge cases
                 // Adjust the start point
                 let (start_enum, start_range_id) = self.has_element_enum(&start);
-                if start_enum == ContainedType::Start {
+                if start_enum == ContainedType::Start ||
+                        (start_enum != ContainedType::Exterior && self.is_range_singleton(start_range_id).unwrap()) {
                     // Given start lines up with start of a range
                     // Was partial -> delete this entire range
                     self.range_storage.drain(
@@ -552,7 +562,8 @@ where
                 }
                 // Adjust the end point
                 let (end_enum, end_range_id) = self.has_element_enum(&end);
-                if end_enum == ContainedType::End {
+                if end_enum == ContainedType::End ||
+                        (end_enum != ContainedType::Exterior && self.is_range_singleton(end_range_id).unwrap()){
                     // Given end lines up with end of a range
                     // Was partial -> delete this entire range
                     self.range_storage.drain(
@@ -1274,6 +1285,28 @@ mod tests {
 
         let sub_obj = &full_obj - &range_rhs;
         assert_eq!(range_obj, sub_obj);
+    }
+    #[test]
+    fn remove_over_valuespan_singletons() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(2..=0xfd)).unwrap();
+        range_obj.insert_range(&(0..=0)).unwrap();
+        range_obj.insert_range(&(0xff..=0xff)).unwrap();
+
+        let mut range_obj_rm_upper = range_obj.clone();
+        let mut range_obj_rm_lower = range_obj.clone();
+
+        let mut lower_half_obj = IntRangeUnionFind::<u8>::new();
+        lower_half_obj.insert_range(&(2..=0x7f)).unwrap();
+        lower_half_obj.insert_range(&(0..=0)).unwrap();
+        range_obj_rm_upper.remove_range(&(0x80..=0xff)).unwrap();
+        assert_eq!(lower_half_obj, range_obj_rm_upper);
+
+        let mut upper_half_obj = IntRangeUnionFind::<u8>::new();
+        upper_half_obj.insert_range(&(0x80..=0xfd)).unwrap();
+        upper_half_obj.insert_range(&(0xff..=0xff)).unwrap();
+        range_obj_rm_lower.remove_range(&(0..0x80)).unwrap();
+        assert_eq!(upper_half_obj, range_obj_rm_lower);
     }
 
     #[test]
