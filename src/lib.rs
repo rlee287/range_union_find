@@ -17,7 +17,7 @@
 //! 
 //! All the functionality is in the [`IntRangeUnionFind`] struct (though we may add `RangeUnionFind` structs for different element types in the future).
 use std::ops::{Bound, RangeBounds, RangeInclusive};
-use std::ops::{BitOr, Sub, BitAnd};
+use std::ops::{BitOr, Sub, BitAnd, Not, BitXor};
 use std::cmp::{min, max};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
@@ -648,6 +648,24 @@ impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
             dup_obj.remove_range(&range).unwrap();
         }
         dup_obj
+    }
+}
+
+impl<T: PrimInt> Not for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    fn not(self) -> Self::Output {
+        let mut full_obj = IntRangeUnionFind::new();
+        full_obj.insert_range(&(..)).unwrap();
+        &full_obj - self
+    }
+}
+
+impl<T: PrimInt> BitXor<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    fn bitxor(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let first_diff_half = self - rhs;
+        let second_diff_half = rhs - self;
+        &first_diff_half | &second_diff_half
     }
 }
 
