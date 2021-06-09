@@ -414,13 +414,13 @@ where
                 };
                 let del_index_end = {
                     let (end_enum, end_range_id) = self.has_element_enum(&end);
-                    2*match end_enum {
+                    match end_enum {
                         ContainedType::Exterior => {
                             // end_range_id==0 -> range isn't partial
                             debug_assert_ne!(end_range_id, 0);
-                            end_range_id-1
+                            2*(end_range_id-1)
                         },
-                        _ => end_range_id
+                        _ => 2*end_range_id
                     }
                 };
                 assert!(del_index_start % 2 == 1);
