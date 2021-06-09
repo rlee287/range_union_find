@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.0
+- Add range removal functionality
+- Add a clear method to remove all ranges
+- Remove `BitOrAssign` impl and change `BitOr` impl to use references (like `BTreeSet`)
+- Implement `Sub`
+- Implement `BitAnd` and `BitXor`
+- Allow unbounded ranges (with the corresponding natural meaning)
+
 ## v0.2.2
 - Fix major bugs in insertion code
 
