@@ -1184,6 +1184,22 @@ mod tests {
         assert_eq!(range_obj, expected_obj);
     }
     #[test]
+    fn remove_overlap_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        let mut range_obj_2 = range_obj.clone();
+        range_obj.remove_range(&(0..=8)).unwrap();
+        range_obj_2.remove_range(&(10..=15)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(9..=12)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+
+        let mut expected_obj_2 = IntRangeUnionFind::<u8>::new();
+        expected_obj_2.insert_range(&(4..=9)).unwrap();
+        assert_eq!(range_obj_2, expected_obj_2);
+    }
+    #[test]
     fn remove_overarch_partial_match() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(4..8)).unwrap();
