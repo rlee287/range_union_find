@@ -62,7 +62,7 @@ pub enum ContainedType {
 }
 /// Enum describing how a range may overlap with another range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OverlapType<T> {
+pub enum OverlapType<T: PrimInt> {
     /// Range does not overlap at all.
     Disjoint,
     /// Range overlaps partially, with parameter being overlap count.
