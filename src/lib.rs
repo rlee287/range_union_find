@@ -1143,7 +1143,21 @@ mod tests {
 
         assert_eq!(expected_obj, range_obj);
     }
+    #[test]
+    fn insert_range_over_endpoint_singletons() {
+        let mut range_obj = IntRangeUnionFind::<u32>::new();
+        range_obj.insert_range(&(10..=10)).unwrap();
+        range_obj.insert_range(&(20..=20)).unwrap();
+        let mut range_obj_2 = range_obj.clone();
+        range_obj.insert_range(&(11..=19)).unwrap();
+        range_obj_2.insert_range(&(10..=20)).unwrap();
+        assert_eq!(range_obj, range_obj_2);
 
+        let mut expected_obj = IntRangeUnionFind::<u32>::new();
+        expected_obj.insert_range(&(10..=20)).unwrap();
+
+        assert_eq!(expected_obj, range_obj);
+    }
     #[test]
     fn insert_gapfill_element_over_dual_range() {
         let mut range_obj = IntRangeUnionFind::<u32>::new();
