@@ -141,7 +141,8 @@ where
     /// `(Exterior,i)` meaning the exterior region before the i'th range.
     /// See [`ContainedType`] for an explanation of the enum values.
     /// 
-    /// If the element is in a single-element range, the enum will not be `Exterior`, but its exact value is otherwise unspecified.
+    /// If the element is in a single-element range of the form `a..=a`,
+    /// the enum will not be `Exterior`, but its exact value is otherwise unspecified.
     ///
     /// # Example
     ///
@@ -200,6 +201,7 @@ where
             (ContainedType::Exterior, _))
     }
 
+    // Returns whether the given range_id is a singleton of the form `a..=a`.
     fn is_range_singleton(&self, range_id: usize) -> Option<bool> {
         let (start, end) = match self.range_storage.get(2*range_id..=2*range_id+1) {
             None => return None,
@@ -545,7 +547,7 @@ where
                     assert_eq!(del_index_end, 0);
                 }
 
-                // TODO: this part may break/work "accidentally" in overflow edge cases
+                // Also do singleton checks as exact loc enum for singleton ranges is unspecified
                 // Adjust the start point
                 let (start_enum, start_range_id) = self.has_element_enum(&start);
                 if start_enum == ContainedType::Start ||
