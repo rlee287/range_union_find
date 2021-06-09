@@ -17,7 +17,8 @@
 //! 
 //! All the functionality is in the [`IntRangeUnionFind`] struct (though we may add `RangeUnionFind` structs for different element types in the future).
 use std::ops::{Bound, RangeBounds, RangeInclusive};
-use std::ops::{BitOr, Sub};
+use std::ops::{BitOr, Sub, BitAnd, Not, BitXor};
+use std::cmp::{min, max};
 use num_traits::PrimInt;
 use sorted_vec::SortedVec;
 use std::iter::FromIterator;
@@ -61,7 +62,7 @@ pub enum ContainedType {
 }
 /// Enum describing how a range may overlap with another range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OverlapType<T> {
+pub enum OverlapType<T: PrimInt> {
     /// Range does not overlap at all.
     Disjoint,
     /// Range overlaps partially, with parameter being overlap count.
@@ -413,13 +414,13 @@ where
                 };
                 let del_index_end = {
                     let (end_enum, end_range_id) = self.has_element_enum(&end);
-                    2*match end_enum {
+                    match end_enum {
                         ContainedType::Exterior => {
                             // end_range_id==0 -> range isn't partial
                             debug_assert_ne!(end_range_id, 0);
-                            end_range_id-1
+                            2*(end_range_id-1)
                         },
-                        _ => end_range_id
+                        _ => 2*end_range_id
                     }
                 };
                 assert!(del_index_start % 2 == 1);
@@ -516,18 +517,26 @@ where
                     // Exterior -> subtract to the range before
                     // else -> skip past the range the endpoint lies in
                     // Computation result is the same regardless
-                    2*end_range_id-1
+                    // Saturating sub+equality check below to catch overflow
+                    (2*end_range_id).saturating_sub(1)
                 };
-                assert!(del_index_start % 2 == 0);
-                assert!(del_index_end % 2 == 1);
+                // These should be true, except for overflow prevention
+                //assert!(del_index_start % 2 == 0);
+                //assert!(del_index_end % 2 == 1);
                 if del_index_end > del_index_start {
                     // Guaranteed by above asserts
                     //assert!((del_index_end - del_index_start + 1) % 2 == 0);
                     self.range_storage.drain(del_index_start..=del_index_end);
-                } else {
+                } else if del_index_end < del_index_start {
                     assert_eq!(del_index_start, del_index_end + 1);
+                } else {
+                    // "Correct" behavior: start=0 and end=-1
+                    // This is also the only time this branch should ever be taken
+                    assert_eq!(del_index_start, 0);
+                    assert_eq!(del_index_end, 0);
                 }
 
+                // TODO: this part may break/work "accidentally" in overflow edge cases
                 // Adjust the start point
                 let (start_enum, start_range_id) = self.has_element_enum(&start);
                 if start_enum == ContainedType::Start {
@@ -639,6 +648,66 @@ impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
             dup_obj.remove_range(&range).unwrap();
         }
         dup_obj
+    }
+}
+
+impl<T: PrimInt> Not for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    fn not(self) -> Self::Output {
+        let mut full_obj = IntRangeUnionFind::new();
+        full_obj.insert_range(&(..)).unwrap();
+        &full_obj - self
+    }
+}
+
+impl<T: PrimInt> BitXor<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    fn bitxor(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let first_diff_half = self - rhs;
+        let second_diff_half = rhs - self;
+        &first_diff_half | &second_diff_half
+    }
+}
+
+impl<T: PrimInt> BitAnd<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
+    type Output = IntRangeUnionFind<T>;
+    /// Computes the union of the two [`IntRangeUnionFind`] objects.
+    fn bitand(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
+        let mut first_range_iter = self.to_collection::<Vec<_>>()
+            .into_iter().peekable();
+        let mut second_range_iter = rhs.to_collection::<Vec<_>>()
+            .into_iter().peekable();
+        // We rely on the iteration being in increasing order here
+        let mut result_vec: Vec<RangeInclusive<T>> = Vec::new();
+        loop {
+            // One iter is out -> no more overlaps possible
+            let first_range_option = first_range_iter.peek();
+            if first_range_option.is_none() {
+                break;
+            }
+            let second_range_option = second_range_iter.peek();
+            if second_range_option.is_none() {
+                break;
+            }
+            let first_range = get_normalized_range(first_range_option.unwrap()).unwrap();
+            let second_range = get_normalized_range(second_range_option.unwrap()).unwrap();
+
+            // Identify overlap and add overlap range to vec
+            let start_overlap = max(first_range.0, second_range.0);
+            let end_overlap = min(first_range.1, second_range.1);
+            let overlap_range = start_overlap..=end_overlap;
+            if get_normalized_range(&overlap_range).is_ok() {
+                result_vec.push(overlap_range);
+            }
+
+            // Advance the correct iterator
+            if first_range.1 <= second_range.1 {
+                first_range_iter.next();
+            } else {
+                second_range_iter.next();
+            }
+        }
+        IntRangeUnionFind::from_iter(result_vec.into_iter())
     }
 }
 
@@ -1133,6 +1202,22 @@ mod tests {
         assert_eq!(range_obj, expected_obj);
     }
     #[test]
+    fn remove_overlap_single_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(4..=12)).unwrap();
+        let mut range_obj_2 = range_obj.clone();
+        range_obj.remove_range(&(0..=8)).unwrap();
+        range_obj_2.remove_range(&(10..=15)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(9..=12)).unwrap();
+        assert_eq!(range_obj, expected_obj);
+
+        let mut expected_obj_2 = IntRangeUnionFind::<u8>::new();
+        expected_obj_2.insert_range(&(4..=9)).unwrap();
+        assert_eq!(range_obj_2, expected_obj_2);
+    }
+    #[test]
     fn remove_overarch_partial_match() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(4..8)).unwrap();
@@ -1189,5 +1274,121 @@ mod tests {
 
         let sub_obj = &full_obj - &range_rhs;
         assert_eq!(range_obj, sub_obj);
+    }
+
+    #[test]
+    fn bitand_same_obj() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+
+        let anded_obj = &range_obj & &range_obj;
+        assert_eq!(range_obj, anded_obj);
+    }
+    #[test]
+    fn bitand_when_contained() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=50)).unwrap();
+
+        let mut rhs_obj = IntRangeUnionFind::<u8>::new();
+        rhs_obj.insert_range(&(20..=30)).unwrap();
+
+        let anded_obj_1 = &range_obj & &rhs_obj;
+        let anded_obj_2 = &rhs_obj & &range_obj;
+        assert_eq!(anded_obj_1, anded_obj_2);
+
+        assert_eq!(anded_obj_1, rhs_obj);
+    }
+    #[test]
+    fn bitand_when_disjoint() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=15)).unwrap();
+
+        let mut rhs_obj = IntRangeUnionFind::<u8>::new();
+        rhs_obj.insert_range(&(20..=30)).unwrap();
+
+        let anded_obj_1 = &range_obj & &rhs_obj;
+        let anded_obj_2 = &rhs_obj & &range_obj;
+        assert_eq!(anded_obj_1, anded_obj_2);
+
+        let expected_obj = IntRangeUnionFind::<u8>::new();
+        assert_eq!(anded_obj_1, expected_obj);
+    }
+    #[test]
+    fn bitand_overarch_subselect() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        let mut rhs_obj = IntRangeUnionFind::<u8>::new();
+        rhs_obj.insert_range(&(0..35)).unwrap();
+
+        let anded_obj_1 = &range_obj & &rhs_obj;
+        let anded_obj_2 = &rhs_obj & &range_obj;
+        assert_eq!(anded_obj_1, anded_obj_2);
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(10..=20)).unwrap();
+        expected_obj.insert_range(&(30..=34)).unwrap();
+        assert_eq!(anded_obj_1, expected_obj);
+    }
+
+    #[test]
+    fn inverse_range() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+
+        let mut expected_inverted_range = IntRangeUnionFind::<u8>::new();
+        expected_inverted_range.insert_range(&(..=9)).unwrap();
+        expected_inverted_range.insert_range(&(21..)).unwrap();
+
+        assert_eq!(!&range_obj, expected_inverted_range);
+    }
+
+    #[test]
+    fn xor_partial() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+
+        let mut rhs_obj = IntRangeUnionFind::<u8>::new();
+        rhs_obj.insert_range(&(15..=25)).unwrap();
+
+        assert_eq!(&range_obj ^ &rhs_obj, &rhs_obj ^ &range_obj);
+
+        let mut expected_xor_obj = IntRangeUnionFind::<u8>::new();
+        expected_xor_obj.insert_range(&(10..=14)).unwrap();
+        expected_xor_obj.insert_range(&(21..=25)).unwrap();
+
+        assert_eq!(&range_obj ^ &rhs_obj, expected_xor_obj);
+    }
+
+    #[test]
+    fn range_set_boolean_ops_demorgan() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(10..=20)).unwrap();
+        range_obj.insert_range(&(30..=40)).unwrap();
+        range_obj.insert_range(&(50..=60)).unwrap();
+        range_obj.insert_range(&(70..=80)).unwrap();
+
+        let mut range_obj_2 = IntRangeUnionFind::<u8>::new();
+        range_obj_2.insert_range(&(30..=60)).unwrap();
+        range_obj_2.insert_range(&(11..16)).unwrap();
+
+        let range_obj_or_given = &range_obj | &range_obj_2;
+        let range_obj_and_given = &range_obj & &range_obj_2;
+        let range_obj_xor_given = &range_obj ^ &range_obj_2;
+
+        assert_eq!(range_obj_xor_given, &range_obj_or_given - &range_obj_and_given);
+
+        let range_obj_or_then_not = !&range_obj_or_given;
+        let range_obj_and_then_not = !&range_obj_and_given;
+
+        let range_obj_not_then_or = &!&range_obj | &!&range_obj_2;
+        let range_obj_not_then_and = &!&range_obj & &!&range_obj_2;
+
+        assert_eq!(range_obj_not_then_and, range_obj_or_then_not);
+        assert_eq!(range_obj_not_then_or, range_obj_and_then_not);
     }
 }
