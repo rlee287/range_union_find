@@ -135,6 +135,11 @@ where
         }
     }
 
+    /// Clears all the ranges stored in this object.
+    pub fn clear(&mut self) {
+        self.range_storage.clear();
+    }
+
     /// Returns a tuple describing the range the element is in, as well as its location.
     /// The range_id is a count of which range the element is in.
     /// The enum indicates where the element is in the range, with
