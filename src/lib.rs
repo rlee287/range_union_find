@@ -600,8 +600,7 @@ where
                         assert_eq!(prev_val+1, next_val);
                         // Range exactly matches an existing range
                         // Remove both endpoints
-                        self.range_storage.remove_index(prev_val);
-                        self.range_storage.remove_index(prev_val);
+                        self.range_storage.drain(prev_val..=prev_val+1);
                     }
                 } else if let (Ok(prev_val), Err(next_val)) = (prev_adj, next_adj) {
                     assert_eq!(prev_val+1, next_val);
