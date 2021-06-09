@@ -528,28 +528,29 @@ where
                         _ => 2*(start_range_id+1)
                     }
                 };
-                let del_index_end = {
+                let del_index_end_opt = {
                     let (_, end_range_id) = self.has_element_enum(&end);
                     // Exterior -> subtract to the range before
                     // else -> skip past the range the endpoint lies in
                     // Computation result is the same regardless
-                    // Saturating sub+equality check below to catch overflow
-                    (2*end_range_id).saturating_sub(1)
+                    // Checked sub to catch 0 underflow
+                    (2*end_range_id).checked_sub(1)
                 };
                 // These should be true, except for overflow prevention
                 //assert!(del_index_start % 2 == 0);
                 //assert!(del_index_end % 2 == 1);
-                if del_index_end > del_index_start {
-                    // Guaranteed by above asserts
-                    //assert!((del_index_end - del_index_start + 1) % 2 == 0);
-                    self.range_storage.drain(del_index_start..=del_index_end);
-                } else if del_index_end < del_index_start {
-                    assert_eq!(del_index_start, del_index_end + 1);
+                if let Some(del_index_end) = del_index_end_opt {
+                    if del_index_end > del_index_start {
+                        // Guaranteed by above asserts
+                        //assert!((del_index_end - del_index_start + 1) % 2 == 0);
+                        self.range_storage.drain(del_index_start..=del_index_end);
+                    } else {
+                        assert_eq!(del_index_start, del_index_end + 1);
+                    }
                 } else {
                     // "Correct" behavior: start=0 and end=-1
                     // This is also the only time this branch should ever be taken
                     assert_eq!(del_index_start, 0);
-                    assert_eq!(del_index_end, 0);
                 }
 
                 // Also do singleton checks as exact loc enum for singleton ranges is unspecified
