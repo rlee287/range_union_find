@@ -1,6 +1,6 @@
 [package]
 name = "range_union_find"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["rlee287 <rlee287@yahoo.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -9,7 +9,7 @@ homepage = "https://github.com/rlee287/range_union_find"
 documentation = "https://docs.rs/range_union_find"
 repository = "https://github.com/rlee287/range_union_find"
 readme = "README.md"
-keywords = ["disjoint-set", "union-find"]
+keywords = ["no-std", "ranges", "disjoint-set", "union-find"]
 categories = ["algorithms", "data-structures"]
 
 [features]

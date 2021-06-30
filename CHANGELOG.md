@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0
+- This release should not have any API incompatibilities with v0.3.0
+- Add method to determine which range an element is a part of
+- Add `no_std` support via optional (but default-enabled) `std` feature
+- Add optional `serde` support via the `include_serde` feature
+
 ## v0.3.0
 - Add range removal functionality
 - Add a clear method to remove all ranges
