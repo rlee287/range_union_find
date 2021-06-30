@@ -365,6 +365,84 @@ where
         }
     }
 
+    /// Returns the range the element is in.
+    /// If the element is in a range, return `Ok(range_with_element)`.
+    /// Otherwise, return `Err(range_between_stored_ranges)`.
+    ///
+    /// *Warning: the `impl RangeBounds<T>` object does not include a `Debug` impl, so `unwrap` and `unwrap_err` cannot be used on the returned result.*
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use range_union_find::*;
+    /// # use std::ops::{Bound, RangeBounds};
+    /// let mut range_obj = IntRangeUnionFind::<i32>::new();
+    /// range_obj.insert_range(&(10..=20));
+    ///
+    /// let one_result = range_obj.find_range_with_element(&1);
+    /// assert!(match one_result {
+    ///     Err(one_err) => {
+    ///         assert_eq!(one_err.start_bound(), Bound::Unbounded);
+    ///         assert_eq!(one_err.end_bound(), Bound::Excluded(&10));
+    ///         true
+    ///     },
+    ///     Ok(_) => false
+    /// });
+    ///
+    /// let twelve_result = range_obj.find_range_with_element(&12);
+    /// assert!(match twelve_result {
+    ///     Ok(twelve_range) => {
+    ///         assert_eq!(twelve_range.start_bound(), Bound::Included(&10));
+    ///         assert_eq!(twelve_range.end_bound(), Bound::Included(&20));
+    ///         true
+    ///     },
+    ///     Err(_) => false
+    /// });
+    ///
+    /// let seventy_result = range_obj.find_range_with_element(&70);
+    /// assert!(match seventy_result {
+    ///     Err(seventy_err) => {
+    ///         assert_eq!(seventy_err.start_bound(), Bound::Excluded(&20));
+    ///         assert_eq!(seventy_err.end_bound(), Bound::Unbounded);
+    ///         true
+    ///     },
+    ///     Ok(_) => false
+    /// });
+    /// ```
+    pub fn find_range_with_element(&self, element: &T) -> Result<impl RangeBounds<T>, impl RangeBounds<T>> {
+        let (element_enum, element_range_id) = self.has_element_enum(element);
+        let range_count = self.range_storage.len() / 2;
+        if element_enum == ContainedType::Exterior {
+            if element_range_id == 0 {
+                return Err((
+                    Bound::Unbounded,
+                    Bound::Excluded(self.range_storage[0])
+                ));
+            } else if element_range_id == range_count {
+                let end_index = 2*element_range_id-1;
+                return Err((
+                    Bound::Excluded(self.range_storage[end_index]),
+                    Bound::Unbounded
+                ));
+            } else {
+                let next_range_start = self.range_storage[2*element_range_id];
+                // 2*(element_range_id-1)+1
+                let prev_range_end = self.range_storage[2*element_range_id-1];
+                return Err((
+                    Bound::Excluded(prev_range_end),
+                    Bound::Excluded(next_range_start)
+                ));
+            }
+        } else {
+            let range_start = self.range_storage[2*element_range_id];
+            let range_end = self.range_storage[2*element_range_id+1];
+            return Ok((
+                Bound::Included(range_start),
+                Bound::Included(range_end)
+            ));
+        }
+    }
+
     /// Inserts the range into the set of ranges.
     ///
     /// # Errors
@@ -1009,6 +1087,43 @@ mod tests {
         assert!(range_obj.has_range(&(17..=20)).unwrap()==OverlapType::Disjoint);
 
         assert!(range_obj.has_range(&(0..8)).unwrap()==OverlapType::Partial(1));
+    }
+
+    #[test]
+    fn find_range_with_element_in_triple() {
+        let mut range_obj = IntRangeUnionFind::<i32>::new();
+        range_obj.insert_range(&(0..=4)).unwrap();
+        range_obj.insert_range(&(8..=8)).unwrap();
+        range_obj.insert_range(&(10..=16)).unwrap();
+
+        let minus_one_result = range_obj.find_range_with_element(&-1);
+        if let Err(minus_one_err) = minus_one_result {
+            assert_eq!(get_normalized_range(&minus_one_err).unwrap(),
+                (i32::MIN, -1));
+        } else {
+            panic!("-1 was in range {:?}", range_obj);
+        }
+        let two_result = range_obj.find_range_with_element(&2);
+        if let Ok(two_ok) = two_result {
+            assert_eq!(get_normalized_range(&two_ok).unwrap(),
+                (0, 4));
+        } else {
+            panic!("2 was not in range {:?}", range_obj);
+        }
+        let nine_result = range_obj.find_range_with_element(&9);
+        if let Err(nine_err) = nine_result {
+            assert_eq!(get_normalized_range(&nine_err).unwrap(),
+                (9, 9));
+        } else {
+            panic!("9 was in range {:?}", range_obj);
+        }
+        let twenty_result = range_obj.find_range_with_element(&20);
+        if let Err(twenty_err) = twenty_result {
+            assert_eq!(get_normalized_range(&twenty_err).unwrap(),
+                (17, i32::MAX));
+        } else {
+            panic!("17 was in range {:?}", range_obj);
+        }
     }
 
     #[test]
