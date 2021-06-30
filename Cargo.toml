@@ -13,7 +13,7 @@ keywords = ["disjoint-set", "union-find"]
 categories = ["algorithms", "data-structures"]
 
 [features]
-default = []
+default = ["std"]
 std = []
 include_serde = ["serde", "sorted-vec/serde"]
 
