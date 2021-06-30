@@ -652,7 +652,7 @@ impl<T: PrimInt> BitOr<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
     /// Computes the union of the two [`IntRangeUnionFind`] objects.
     fn bitor(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
         let mut dup_obj = self.clone();
-        dup_obj.extend(rhs.to_collection::<Vec<RangeInclusive<T>>>());
+        dup_obj.extend(rhs.to_collection::<Vec<_>>());
         dup_obj
     }
 }
@@ -662,7 +662,7 @@ impl<T: PrimInt> Sub<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
     /// Subtracts the rhs [`IntRangeUnionFind`] object from the lhs one.
     fn sub(self, rhs: &IntRangeUnionFind<T>) -> Self::Output {
         let mut dup_obj = self.clone();
-        for range in rhs.to_collection::<Vec<RangeInclusive<T>>>() {
+        for range in rhs.to_collection::<Vec<_>>() {
             dup_obj.remove_range(&range).unwrap();
         }
         dup_obj
