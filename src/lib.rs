@@ -776,7 +776,11 @@ impl<T: PrimInt> BitAnd<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
         // We rely on the iteration being in increasing order here
         let mut result_vec: Vec<RangeInclusive<T>> = Vec::new();
         // min_compare variables only used for asserting the above ordering
+        #[cfg_attr(not(debug_assertions),
+            allow(unused_variables), allow(unused_mut))]
         let mut min_compare_first = T::min_value();
+        #[cfg_attr(not(debug_assertions),
+            allow(unused_variables), allow(unused_mut))]
         let mut min_compare_second = T::min_value();
         loop {
             // One iter is out -> no more overlaps possible
