@@ -12,6 +12,10 @@ readme = "README.md"
 keywords = ["disjoint-set", "union-find"]
 categories = ["algorithms", "data-structures"]
 
+[features]
+default = []
+std = []
+
 [dependencies]
 num-traits = "0.2.14"
 sorted-vec = "0.5.2"

@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![no_std]
 #![doc(html_root_url = "https://docs.rs/range_union_find/0.3.0")]
 
 //! Provides a data structure backed by a vector for unioning ranges of integers.
@@ -16,15 +17,26 @@
 //! ```
 //! 
 //! All the functionality is in the [`IntRangeUnionFind`] struct (though we may add `RangeUnionFind` structs for different element types in the future).
-use std::ops::{Bound, RangeBounds, RangeInclusive};
-use std::ops::{BitOr, Sub, BitAnd, Not, BitXor};
-use std::cmp::{min, max};
+#[cfg(any(feature = "std", test))]
+#[macro_use]
+extern crate std;
+
+extern crate alloc;
+
+use core::ops::{Bound, RangeBounds, RangeInclusive};
+use core::ops::{BitOr, Sub, BitAnd, Not, BitXor};
+use core::cmp::{min, max};
 use num_traits::PrimInt;
+
+use alloc::vec::Vec;
 use sorted_vec::SortedVec;
-use std::iter::FromIterator;
+use core::iter::FromIterator;
 
-use std::fmt;
+use core::fmt;
+use alloc::format;
+use alloc::string::String;
 
+#[cfg(feature = "std")]
 use std::error::Error;
 
 /// Enum describing how a range may be invalid.
@@ -46,6 +58,8 @@ impl fmt::Display for RangeOperationError {
         write!(f, "{}", description_str)
     }
 }
+
+#[cfg(feature = "std")]
 impl Error for RangeOperationError {}
 
 /// Enum describing what location an element has in a range.
