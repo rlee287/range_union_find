@@ -36,6 +36,9 @@ use core::fmt;
 use alloc::format;
 use alloc::string::String;
 
+#[cfg(feature = "include_serde")]
+use serde::{Serialize, Deserialize};
+
 #[cfg(feature = "std")]
 use std::error::Error;
 
@@ -123,6 +126,7 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
 }
 
 #[derive(Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "include_serde", derive(Serialize, Deserialize))]
 /*
  * Stores ranges in the following form:
  * range_storage [a_1, b_1, a_2, b_2, ...]
