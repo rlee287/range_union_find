@@ -697,6 +697,9 @@ impl<T: PrimInt> BitAnd<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
             .into_iter().peekable();
         // We rely on the iteration being in increasing order here
         let mut result_vec: Vec<RangeInclusive<T>> = Vec::new();
+        // min_compare variables only used for asserting the above ordering
+        let mut min_compare_first = T::min_value();
+        let mut min_compare_second = T::min_value();
         loop {
             // One iter is out -> no more overlaps possible
             let first_range_option = first_range_iter.peek();
@@ -718,11 +721,24 @@ impl<T: PrimInt> BitAnd<&IntRangeUnionFind<T>> for &IntRangeUnionFind<T> {
                 result_vec.push(overlap_range);
             }
 
-            // Advance the correct iterator
+            // Advance the correct iterator and assert next elements are larger
+            // Wrap asserts in cfg block in case assignment has side effects
             if first_range.1 <= second_range.1 {
                 first_range_iter.next();
+                #[cfg(debug_assertions)]
+                {
+                    debug_assert!(min_compare_first <= first_range.0);
+                    debug_assert!(first_range.0 <= first_range.1);
+                    min_compare_first = first_range.1;
+                }
             } else {
                 second_range_iter.next();
+                #[cfg(debug_assertions)]
+                {
+                    debug_assert!(min_compare_second <= second_range.0);
+                    debug_assert!(second_range.0 <= second_range.1);
+                    min_compare_second = second_range.1;
+                }
             }
         }
         IntRangeUnionFind::from_iter(result_vec.into_iter())
