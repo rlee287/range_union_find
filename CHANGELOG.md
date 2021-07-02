@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.1
+- Fix html\_root\_url version number copy
+
 ## v0.4.0
 - This release should not have any API incompatibilities with v0.3.0
 - Add method to determine which range an element is a part of
