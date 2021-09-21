@@ -23,4 +23,4 @@ sorted-vec = "0.5.2"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]
-version-sync = "0.9"
+version-sync = { version = ">=0.9.3, < 0.10.0", default-features = false, features = ["html_root_url_updated"] }
