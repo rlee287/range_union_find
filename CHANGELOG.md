@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.2
+- Bump dependency versions
+
 ## v0.4.1
 - Fix html\_root\_url version number copy
 
