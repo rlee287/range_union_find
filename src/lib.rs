@@ -493,22 +493,49 @@ where
                     false => self.range_storage.binary_search(&(*end+T::one()))
                 };
                 if let (Ok(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
+                    // For a single-point range, binary search may have found "wrong" element
+                    // If so, we increment the first index to remove by 1
+                    // And/or decrement the second index to remove by 1
+
                     // Element fills gap between ranges
-                    assert_eq!(prev_val % 2, 1);
-                    assert_eq!(next_val % 2, 0);
-                    let index_remove = prev_val;
-                    assert!(index_remove + 1 == next_val);
+                    assert!(prev_val % 2 == 1 || self.range_storage[prev_val] == self.range_storage[prev_val+1]);
+                    assert!(next_val % 2 == 0 || self.range_storage[next_val-1] == self.range_storage[next_val]);
+                    let index_remove = match prev_val % 2 {
+                        0 => prev_val + 1,
+                        1 => prev_val,
+                        _ => unreachable!()
+                    };
+                    let index_remove_incr = match next_val % 2 {
+                        0 => next_val,
+                        1 => next_val - 1,
+                        _ => unreachable!()
+                    };
+                    assert!(index_remove + 1 == index_remove_incr);
                     // Remove both endpoints
                     self.range_storage.drain(index_remove..=index_remove+1);
                 } else if let Ok(prev_val) = prev_adj {
-                    assert_eq!(prev_val % 2, 1);
+                    // For a single-point range, binary search may have found first element
+                    // If so, we increment the index to remove by 1
+                    assert!(prev_val % 2 == 1 || self.range_storage[prev_val] == self.range_storage[prev_val+1]);
                     // Extend start range by one, and insert other end
-                    self.range_storage.remove_index(prev_val);
+                    let index_remove = match prev_val % 2 {
+                        0 => prev_val + 1,
+                        1 => prev_val,
+                        _ => unreachable!()
+                    };
+                    self.range_storage.remove_index(index_remove);
                     self.range_storage.insert(*end);
                 } else if let Ok(next_val) = next_adj {
-                    assert_eq!(next_val % 2, 0);
+                    // For a single-point range, binary search may have found second element
+                    // If so, we decrement the index to remove by 1
+                    assert!(next_val % 2 == 0 || self.range_storage[next_val-1] == self.range_storage[next_val]);
                     // Extend end range by one, and insert other end
-                    self.range_storage.remove_index(next_val);
+                    let index_remove = match next_val % 2 {
+                        0 => next_val,
+                        1 => next_val - 1,
+                        _ => unreachable!()
+                    };
+                    self.range_storage.remove_index(index_remove);
                     self.range_storage.insert(*start);
                 } else {
                     assert_eq!(prev_adj.unwrap_err() % 2, 0);
@@ -1300,6 +1327,35 @@ mod tests {
 
         let mut expected_obj = IntRangeUnionFind::<u32>::new();
         expected_obj.insert_range(&(10..=20)).unwrap();
+
+        assert_eq!(expected_obj, range_obj);
+    }
+    #[test]
+    fn insert_repeated_points() {
+        let mut range_obj = IntRangeUnionFind::<u32>::new();
+        range_obj.insert_range(&(10..=10)).unwrap();
+        range_obj.insert_range(&(11..=11)).unwrap();
+        range_obj.insert_range(&(13..=13)).unwrap();
+        range_obj.insert_range(&(12..=12)).unwrap();
+
+        range_obj.insert_range(&(15..=15)).unwrap();
+        range_obj.insert_range(&(16..=16)).unwrap();
+        range_obj.insert_range(&(18..=18)).unwrap();
+        range_obj.insert_range(&(17..=17)).unwrap();
+
+        range_obj.insert_range(&(21..=21)).unwrap();
+        range_obj.insert_range(&(20..=20)).unwrap();
+        range_obj.insert_range(&(23..=23)).unwrap();
+        range_obj.insert_range(&(22..=22)).unwrap();
+
+        range_obj.insert_range(&(25..=25)).unwrap();
+        range_obj.insert_range(&(27..=27)).unwrap();
+        range_obj.insert_range(&(26..=26)).unwrap();
+        let mut expected_obj = IntRangeUnionFind::<u32>::new();
+        expected_obj.insert_range(&(10..=13)).unwrap();
+        expected_obj.insert_range(&(15..=18)).unwrap();
+        expected_obj.insert_range(&(20..=23)).unwrap();
+        expected_obj.insert_range(&(25..=27)).unwrap();
 
         assert_eq!(expected_obj, range_obj);
     }
