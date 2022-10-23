@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.3
+- Fix panic that could occur when inserting adjacent to ranges with a single element
+
 ## v0.4.2
 - Bump dependency versions
 

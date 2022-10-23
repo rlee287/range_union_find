@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/range_union_find/0.4.2")]
+#![doc(html_root_url = "https://docs.rs/range_union_find/0.4.3")]
 
 //! Provides a data structure backed by a vector for unioning ranges of integers.
 //! We intelligently merge inserted ranges to minimize required storage.
