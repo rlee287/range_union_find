@@ -688,8 +688,19 @@ where
                 } else if start_enum != ContainedType::Exterior {
                     // Move the endpoint to new location
                     self.range_storage.remove_index(2*start_range_id+1);
-                    let insert_pos = self.range_storage.insert(*start-T::one());
-                    assert_eq!(insert_pos, 2*start_range_id+1);
+                    let insert_pos = {
+                        let ret_pos = self.range_storage.insert(*start-T::one());
+                        match ret_pos % 2 {
+                            0 => {
+                                // Should only hit this if a singleton is left
+                                assert_eq!(self.range_storage[ret_pos], self.range_storage[ret_pos+1]);
+                                ret_pos + 1
+                            }
+                            1 => ret_pos,
+                            _ => unreachable!()
+                        }
+                    };
+                    assert!(insert_pos == 2*start_range_id+1);
                 }
                 // Adjust the end point
                 let (end_enum, end_range_id) = self.has_element_enum(&end);
@@ -702,7 +713,19 @@ where
                 } else if end_enum != ContainedType::Exterior {
                     // Move the startpoint to new location
                     self.range_storage.remove_index(2*end_range_id);
-                    let insert_pos = self.range_storage.insert(*end+T::one());
+                    let insert_pos = {
+                        let ret_pos = self.range_storage.insert(*end+T::one());
+                        match ret_pos % 2 {
+                            0 => ret_pos,
+                            1 => {
+                                // Should only hit this if a singleton is left
+                                // Theoretical as of now due to implementation-defined characteristics of binary search
+                                assert_eq!(self.range_storage[ret_pos-1], self.range_storage[ret_pos]);
+                                ret_pos - 1
+                            }
+                            _ => unreachable!()
+                        }
+                    };
                     assert_eq!(insert_pos, 2*end_range_id);
                 }
             }
@@ -1498,6 +1521,18 @@ mod tests {
         assert_eq!(range_obj, expected_obj);
     }
     #[test]
+    fn remove_point_make_points() {
+        let mut range_obj = IntRangeUnionFind::<u8>::new();
+        range_obj.insert_range(&(1..=3)).unwrap();
+        range_obj.remove_range(&(2..=2)).unwrap();
+
+        let mut expected_obj = IntRangeUnionFind::<u8>::new();
+        expected_obj.insert_range(&(1..=1)).unwrap();
+        expected_obj.insert_range(&(3..=3)).unwrap();
+
+        assert_eq!(range_obj, expected_obj);
+    }
+    #[test]
     fn remove_sub_equivalence() {
         let mut range_obj = IntRangeUnionFind::<u8>::new();
         range_obj.insert_range(&(10..=20)).unwrap();
@@ -1537,6 +1572,18 @@ mod tests {
         upper_half_obj.insert_range(&(0xff..=0xff)).unwrap();
         range_obj_rm_lower.remove_range(&(0..0x80)).unwrap();
         assert_eq!(upper_half_obj, range_obj_rm_lower);
+    }
+    #[test]
+    fn remove_partial_with_singleton_leftovers() {
+        // Leaving behind an endpoint singleton on the right
+        // See regression_issue_1 for an endpoint singleton on the leftt
+        let mut inv = IntRangeUnionFind::<i32>::new();
+        inv.insert_range(&(14..=20)).unwrap();
+        inv.remove_range(&(0..=19)).unwrap();
+        // Inserted check for final result not in the original issue
+        let mut expected_inv = IntRangeUnionFind::<i32>::new();
+        expected_inv.insert_range(&(20..21)).unwrap();
+        assert_eq!(inv, expected_inv);
     }
 
     #[test]

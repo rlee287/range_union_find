@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.4
+- Fix a false positive index assertion in removal code that did not account for singleton ranges being left behind
+
 ## v0.4.3
 - Fix panic that could occur when inserting adjacent to ranges with a single element
 
