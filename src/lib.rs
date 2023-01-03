@@ -693,7 +693,7 @@ where
                         match ret_pos % 2 {
                             0 => {
                                 // Should only hit this if a singleton is left
-                                assert_eq!(self.range_storage[ret_pos], self.range_storage[ret_pos+1]);
+                                assert!(self.range_storage[ret_pos] == self.range_storage[ret_pos+1]);
                                 ret_pos + 1
                             }
                             1 => ret_pos,
@@ -720,7 +720,7 @@ where
                             1 => {
                                 // Should only hit this if a singleton is left
                                 // Theoretical as of now due to implementation-defined characteristics of binary search
-                                assert_eq!(self.range_storage[ret_pos-1], self.range_storage[ret_pos]);
+                                assert!(self.range_storage[ret_pos-1] == self.range_storage[ret_pos]);
                                 ret_pos - 1
                             }
                             _ => unreachable!()
