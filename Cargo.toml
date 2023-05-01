@@ -1,6 +1,6 @@
 [package]
 name = "range_union_find"
-version = "0.4.4"
+version = "0.5.0"
 authors = ["rlee287 <rlee287@yahoo.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -14,11 +14,12 @@ categories = ["algorithms", "data-structures"]
 
 [features]
 default = ["std"]
-std = []
+std = ["num-traits/std"]
+libm = ["num-traits/libm"]
 include_serde = ["serde", "sorted-vec/serde"]
 
 [dependencies]
-num-traits = "0.2"
+num-traits = { version = "0.2", default-features = false }
 sorted-vec = "0.8"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 

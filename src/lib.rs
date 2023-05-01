@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/range_union_find/0.4.4")]
+#![doc(html_root_url = "https://docs.rs/range_union_find/0.5.0")]
 
 //! Provides a data structure backed by a vector for unioning ranges of integers.
 //! We intelligently merge inserted ranges to minimize required storage.
@@ -226,12 +226,11 @@ where
 
     // Returns whether the given range_id is a singleton of the form `a..=a`.
     fn is_range_singleton(&self, range_id: usize) -> Option<bool> {
-        let (start, end) = match self.range_storage.get(2*range_id..=2*range_id+1) {
-            None => return None,
-            Some([a, b]) => (a, b),
+        match self.range_storage.get(2*range_id..=2*range_id+1) {
+            None => None,
+            Some([a, b]) => Some(a == b),
             _ => unreachable!()
-        };
-        Some(start == end)
+        }
     }
 
     /// Returns how the given range overlaps with the stored ranges.
