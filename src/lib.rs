@@ -43,6 +43,8 @@ mod num_trait;
 use num_trait::get_normalized_range;
 pub use num_trait::{NumInRange, Steppable, RangeOperationError};
 
+mod float_helpers;
+pub use float_helpers::{NonNanFloat, FloatIsNan};
 
 /// Enum describing what location an element has in a range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -74,10 +76,6 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
         Err(val) => val
     }
 }
-
-#[cfg(any(feature = "std", feature = "libm"))]
-mod float_helpers;
-pub use float_helpers::{NonNanFloat, FloatIsNan};
 
 #[derive(Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "include_serde", derive(Serialize, Deserialize))]
