@@ -37,3 +37,42 @@ fn insert_max_size_range() {
     unbounded_range_obj.insert_range(&(..)).unwrap();
     assert_eq!(range_obj, unbounded_range_obj);
 }
+
+#[test]
+fn fp_range_merge() {
+    let mut range_obj_ref = RangeUnionFind::<NonNanFloat<f64>>::new();
+    range_obj_ref.insert_range(&wrap_fp_range(&(0.5..2.5)).unwrap()).unwrap();
+
+    let mut range_obj_one = RangeUnionFind::<NonNanFloat<f64>>::new();
+    range_obj_one.insert_range(&wrap_fp_range(&(0.5..=1.5)).unwrap()).unwrap();
+    range_obj_one.insert_range(&wrap_fp_range(&(1.5..2.5)).unwrap()).unwrap();
+
+    let mut range_obj_two = RangeUnionFind::<NonNanFloat<f64>>::new();
+    range_obj_two.insert_range(&wrap_fp_range(&(0.5..1.5)).unwrap()).unwrap();
+    range_obj_two.insert_range(&wrap_fp_range(&(1.5..2.5)).unwrap()).unwrap();
+
+    assert_eq!(range_obj_ref, range_obj_one);
+    assert_eq!(range_obj_ref, range_obj_two);
+}
+
+#[test]
+fn single_inf_range_range_checks() {
+    let mut range_obj = RangeUnionFind::<NonNanFloat<f32>>::new();
+    range_obj.insert_range(&wrap_fp_range(&(0.0..=f32::INFINITY)).unwrap()).unwrap();
+
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(0.1..=44.0)).unwrap()).unwrap(),OverlapType::Contained);
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(0.1..=f32::INFINITY)).unwrap()).unwrap(),OverlapType::Contained);
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(0.0..=f32::INFINITY)).unwrap()).unwrap(),OverlapType::Contained);
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(-0.1..=f32::INFINITY)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(f32::INFINITY)));
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(-0.1..5.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(5.0)));
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(f32::NEG_INFINITY..-5.0)).unwrap()).unwrap(),OverlapType::Disjoint);
+}
+#[test]
+fn multi_range_range_partial() {
+    let mut range_obj = RangeUnionFind::<NonNanFloat<f64>>::new();
+    range_obj.insert_range(&wrap_fp_range(&(-8.0..=-4.0)).unwrap()).unwrap();
+    range_obj.insert_range(&wrap_fp_range(&(4.0..=8.0)).unwrap()).unwrap();
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(-10.0..=-1.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(4.0).step_incr()));
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(-1.0..=9.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(4.0).step_incr()));
+    assert_eq!(range_obj.has_range(&wrap_fp_range(&(-10.0..=9.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(8.0).step_incr()));
+}

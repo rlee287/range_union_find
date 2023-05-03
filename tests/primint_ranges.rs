@@ -28,6 +28,8 @@ fn reject_bad_ranges() {
 
     range_obj.remove_range(&(5..=2)).unwrap_err();
     range_obj.remove_range_pair(&5, &2).unwrap_err();
+
+    range_obj.has_range(&(7..7)).unwrap_err();
 }
 #[test]
 fn make_from_iter() {
