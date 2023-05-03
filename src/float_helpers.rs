@@ -94,26 +94,6 @@ impl<T: Float> PartialOrd<T> for NonNanFloat<T> {
 
 macro_rules! impl_float_traits {
     ($float: ty, $wrap: ty, $next_after: expr) => {
-        impl Add for $wrap {
-            type Output = Self;
-
-            #[inline(always)]
-            fn add(self, rhs: Self) -> Self::Output {
-                <$wrap>::new(self.0 + rhs.0)
-            }
-        }
-        impl NumInRange for $wrap {
-            #[inline(always)]
-            fn min_value() -> Self {
-                <$wrap>::new(<$float>::NEG_INFINITY)
-            }
-            #[inline(always)]
-            fn max_value() -> Self {
-                <$wrap>::new(<$float>::INFINITY)
-            }
-            const MIN_DECR_IS_UNDERFLOW: bool = false;
-            const MAX_INCR_IS_OVERFLOW: bool = false;
-        }
         impl Steppable for $wrap {
             fn step_incr(&self) -> Self {
                 <$wrap>::new($next_after(self.0, Self::max_value().0))
@@ -131,6 +111,31 @@ macro_rules! impl_float_traits {
             }
         }
     }
+}
+
+impl<T: Float> Add for NonNanFloat<T> {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 + rhs.0)
+    }
+}
+
+impl<T: Float> NumInRange for NonNanFloat<T>
+where
+    NonNanFloat<T>: Steppable
+{
+    #[inline(always)]
+    fn min_value() -> Self {
+        Self::new(T::neg_infinity())
+    }
+    #[inline(always)]
+    fn max_value() -> Self {
+        Self::new(T::infinity())
+    }
+    const MIN_DECR_IS_UNDERFLOW: bool = false;
+    const MAX_INCR_IS_OVERFLOW: bool = false;
 }
 
 impl_float_traits!(f32, NonNanFloat<f32>, nextafterf);
