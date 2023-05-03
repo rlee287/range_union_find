@@ -46,12 +46,16 @@ impl_try_from_float!(f64, NonNanFloat<f64>);
 
 impl<T: Float> NonNanFloat<T> {
     #[inline(always)]
-    pub fn new(val: T) -> Self {
+    pub fn try_new(val: T) -> Result<Self, FloatIsNan> {
         if val.is_nan() {
-            panic!("{}", FloatIsNan {});
+            Err(FloatIsNan {})
         } else {
-            NonNanFloat(val)
+            Ok(NonNanFloat(val))
         }
+    }
+    #[inline(always)]
+    pub fn new(val: T) -> Self {
+        Self::try_new(val).unwrap()
     }
     #[inline(always)]
     pub fn into_inner(&self) -> T {
@@ -71,6 +75,20 @@ impl<T: Float> Ord for NonNanFloat<T> {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.partial_cmp(other).unwrap()
+    }
+}
+
+impl<T: Float> PartialEq<T> for NonNanFloat<T> {
+    fn eq(&self, other: &T) -> bool {
+        if other.is_nan() {
+            return false;
+        }
+        self.0 == *other
+    }
+}
+impl<T: Float> PartialOrd<T> for NonNanFloat<T> {
+    fn partial_cmp(&self, other: &T) -> Option<core::cmp::Ordering> {
+        self.0.partial_cmp(other)
     }
 }
 

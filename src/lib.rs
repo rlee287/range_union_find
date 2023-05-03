@@ -930,8 +930,24 @@ impl<T: NumInRange> From<RangeUnionFind<T>> for Vec<RangeInclusive<T>> {
 mod tests {
     use super::*;
 
+    use num_traits::Float;
+
+    fn wrap_fp_range<F: Float, R: RangeBounds<F>>(range: &R) -> Result<(Bound<NonNanFloat<F>>, Bound<NonNanFloat<F>>), FloatIsNan> {
+        let new_start = match range.start_bound() {
+            Bound::Included(f) => Bound::Included(NonNanFloat::try_new(*f)?),
+            Bound::Excluded(f) => Bound::Excluded(NonNanFloat::try_new(*f)?),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        let new_end = match range.end_bound() {
+            Bound::Included(f) => Bound::Included(NonNanFloat::try_new(*f)?),
+            Bound::Excluded(f) => Bound::Excluded(NonNanFloat::try_new(*f)?),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        Ok((new_start, new_end))
+    }
+
     #[test]
-    fn find_range_with_element_in_triple() {
+    fn find_range_with_i32_element_in_triple() {
         let mut range_obj = RangeUnionFind::<i32>::new();
         range_obj.insert_range(&(0..=4)).unwrap();
         range_obj.insert_range(&(8..=8)).unwrap();
@@ -963,7 +979,44 @@ mod tests {
             assert_eq!(get_normalized_range(&twenty_err).unwrap(),
                 (17, i32::MAX));
         } else {
-            panic!("17 was in range {:?}", range_obj);
+            panic!("20 was in range {:?}", range_obj);
+        }
+    }
+
+    #[test]
+    fn find_range_with_f64_element_in_triple() {
+        let mut range_obj = RangeUnionFind::<NonNanFloat<f64>>::new();
+        range_obj.insert_range(&wrap_fp_range(&(-2.0..=4.0)).unwrap()).unwrap();
+        range_obj.insert_range(&wrap_fp_range(&(8.0..=8.0)).unwrap()).unwrap();
+        range_obj.insert_range(&wrap_fp_range(&(10.0..16.0)).unwrap()).unwrap();
+
+        let minus_three_result = range_obj.find_range_with_element(&NonNanFloat::new(-3.0));
+        if let Err(minus_one_err) = minus_three_result {
+            assert_eq!(get_normalized_range(&minus_one_err).unwrap(),
+                (NonNanFloat::new(f64::NEG_INFINITY), NonNanFloat::new(-2.0).step_decr()));
+        } else {
+            panic!("-3 was in range {:?}", range_obj);
+        }
+        let two_result = range_obj.find_range_with_element(&NonNanFloat::new(2.0));
+        if let Ok(two_ok) = two_result {
+            assert_eq!(get_normalized_range(&two_ok).unwrap(),
+                (NonNanFloat::new(-2.0), NonNanFloat::new(4.0)));
+        } else {
+            panic!("2 was not in range {:?}", range_obj);
+        }
+        let nine_result = range_obj.find_range_with_element(&NonNanFloat::new(9.0));
+        if let Err(nine_err) = nine_result {
+            assert_eq!(get_normalized_range(&nine_err).unwrap(),
+            (NonNanFloat::new(8.0).step_incr(), NonNanFloat::new(10.0).step_decr()));
+        } else {
+            panic!("9 was in range {:?}", range_obj);
+        }
+        let twenty_result = range_obj.find_range_with_element(&NonNanFloat::new(20.0));
+        if let Err(twenty_err) = twenty_result {
+            assert_eq!(get_normalized_range(&twenty_err).unwrap(),
+            (NonNanFloat::new(16.0), NonNanFloat::new(f64::INFINITY)));
+        } else {
+            panic!("20 was in range {:?}", range_obj);
         }
     }
 }
