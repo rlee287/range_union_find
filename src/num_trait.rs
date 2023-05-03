@@ -1,6 +1,6 @@
 use num_traits::{PrimInt, Num};
 
-use core::ops::{Bound, RangeBounds};
+use core::ops::{Add, Bound, RangeBounds};
 use core::borrow::Borrow;
 
 use core::fmt;
@@ -61,6 +61,9 @@ where
     }
 }
 
+/// Trait representing number types which can be incrementally stepped.
+/// # Safety
+/// This trait is not `unsafe`, so do not use custom implementers of this trait in unsafe contexts (e.g. a custom `NumInRange` as indexes to track initialized buckets in a custom HashMap) without auditing the exact implementation.
 pub trait Steppable: Clone + PartialOrd + Ord {
     /// Return the smallest possible value larger than the input value. Should saturate at the maximum possible value.
     fn step_incr(&self) -> Self;
@@ -69,26 +72,33 @@ pub trait Steppable: Clone + PartialOrd + Ord {
 
     /// Return the size of the range.
     fn range_size<N: Borrow<Self>, R: RangeBounds<N>>(range: R) -> Result<Self, RangeOperationError>;
+    fn range_tuple_size<N: Borrow<Self>>(start: N, end: N) -> Result<Self, RangeOperationError> {
+        Self::range_size((Bound::Included(start), Bound::Included(end)))
+    }
 }
 
-/// A trait to represent number types over which intervals can be constructed.
+/// Trait representing number types over which intervals can be constructed.
 /// # Safety
 /// This trait is not `unsafe`, so do not use custom implementers of this trait in unsafe contexts (e.g. a custom `NumInRange` as indexes to track initialized buckets in a custom HashMap) without auditing the exact implementation.
-pub trait NumInRange: Steppable + Clone + PartialOrd + Ord + PartialEq + Eq {
+pub trait NumInRange: Steppable + Add<Output = Self> + Clone + PartialOrd + Ord + PartialEq + Eq {
     /// Return the minimum possible value the number can take.
     fn min_value() -> Self;
     /// Return the maximum possible value the number can take.
     fn max_value() -> Self;
 }
+
 impl<T: PrimInt> NumInRange for T {
+    #[inline(always)]
     fn min_value() -> Self {
         T::min_value()
     }
+    #[inline(always)]
     fn max_value() -> Self{
         T::max_value()
     }
 }
 impl<T: PrimInt> Steppable for T {
+    #[inline(always)]
     fn step_incr(&self) -> Self {
         let retval = self.saturating_add(Self::one());
         if self == &Self::max_value() {
@@ -96,6 +106,7 @@ impl<T: PrimInt> Steppable for T {
         }
         retval
     }
+    #[inline(always)]
     fn step_decr(&self) -> Self {
         let retval = self.saturating_sub(Self::one());
         if self == &Self::min_value() {
@@ -109,5 +120,30 @@ impl<T: PrimInt> Steppable for T {
         let size = (end_inclusive-start_inclusive).step_incr();
         assert!(size > T::zero());
         Ok(size)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn step_i8_full() {
+        for i in i8::MIN..=i8::MAX {
+            let i_minus_minus = i.step_decr();
+            let i_plus_plus = i.step_incr();
+            if i != i8::MIN {
+                assert_ne!(i, i_minus_minus);
+                assert_eq!(i-1, i_minus_minus);
+            } else {
+                assert_eq!(i, i_minus_minus);
+            }
+            if i != i8::MAX {
+                assert_ne!(i, i_plus_plus);
+                assert_eq!(i+1, i_plus_plus);
+            } else {
+                assert_eq!(i, i_plus_plus);
+            }
+        }
     }
 }

@@ -16,7 +16,7 @@
 //! # Ok::<(), RangeOperationError>(())
 //! ```
 //! 
-//! The main type is the [`RangeUnionFind`] struct, with the [`NumInRange`] trait implemented for types that can be used to form ranges.
+//! The main type is the [`RangeUnionFind`] struct, with the [`NumInRange`] trait implemented for primitive integer and float types that can be used to form ranges.
 #[cfg(any(feature = "std", test))]
 #[macro_use]
 extern crate std;
@@ -26,7 +26,6 @@ extern crate alloc;
 use core::ops::{Bound, RangeBounds, RangeInclusive};
 use core::ops::{BitOr, Sub, BitAnd, Not, BitXor};
 use core::cmp::{min, max};
-use num_traits::PrimInt;
 
 use alloc::vec::Vec;
 use sorted_vec::SortedVec;
@@ -60,7 +59,7 @@ pub enum ContainedType {
 }
 /// Enum describing how a range may overlap with another range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OverlapType<T: PrimInt> {
+pub enum OverlapType<T: NumInRange> {
     /// Range does not overlap at all.
     Disjoint,
     /// Range overlaps partially, with parameter being overlap count.
@@ -87,16 +86,11 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
  * We also assume ranges are always as optimized as possible
  */
 /// Struct representing a union of ranges.
-pub struct RangeUnionFind<T>
-where
-    T: PrimInt
-{
+pub struct RangeUnionFind<T: NumInRange> {
     range_storage: SortedVec<T>,
 }
 
-impl<T> RangeUnionFind<T>
-where
-    T: PrimInt
+impl<T: NumInRange> RangeUnionFind<T>
 {
     /// Constructs a new [`RangeUnionFind`] object.
     pub fn new() -> Self {
@@ -235,20 +229,24 @@ where
                 return match range_end_enum {
                     ContainedType::Exterior => Ok(OverlapType::Disjoint),
                     ContainedType::Start => {
-                        let stored_range_start = self.range_storage[2*range_start_id];
-                        assert!(*end == stored_range_start);
-                        Ok(OverlapType::Partial(T::one()))
+                        let stored_range_start = &self.range_storage[2*range_start_id];
+                        assert!(end == stored_range_start);
+                        // Overlap is 1 for integer types and 0 for real types
+                        Ok(OverlapType::Partial(
+                            T::range_tuple_size(stored_range_start, end).unwrap()))
                     },
                     ContainedType::Interior => {
-                        let stored_range_start = self.range_storage[2*range_start_id];
-                        let overlap = *end-stored_range_start+T::one();
+                        let stored_range_start = &self.range_storage[2*range_start_id];
+                        //let overlap = *end-stored_range_start+T::one();
+                        let overlap = T::range_tuple_size(stored_range_start, end).unwrap();
                         Ok(OverlapType::Partial(overlap))
                     }
                     ContainedType::End => {
-                        let stored_range_start = self.range_storage[2*range_start_id];
-                        let stored_range_end = self.range_storage[2*range_end_id+1];
-                        let overlap = *end-stored_range_start+T::one();
-                        assert!(*end == stored_range_end);
+                        let stored_range_start = &self.range_storage[2*range_start_id];
+                        let stored_range_end = &self.range_storage[2*range_end_id+1];
+                        //let overlap = *end-stored_range_start+T::one();
+                        let overlap = T::range_tuple_size(stored_range_start, end).unwrap();
+                        assert!(end == stored_range_end);
                         Ok(OverlapType::Partial(overlap))
                     }
                 };
@@ -256,23 +254,27 @@ where
         } else if range_end_id == range_start_id+1
                 && range_end_enum == ContainedType::Exterior {
             // Single range, given endpoint>a contained range endpoint
-            let contained_range_start = self.range_storage[2*range_start_id];
-            let contained_range_end = self.range_storage[2*range_start_id+1];
+            let contained_range_start = &self.range_storage[2*range_start_id];
+            let contained_range_end = &self.range_storage[2*range_start_id+1];
             match range_start_enum {
                 ContainedType::Exterior | ContainedType::Start => {
-                    let size = contained_range_end-contained_range_start+T::one();
+                    //let size = contained_range_end-contained_range_start+T::one();
+                    let size = T::range_tuple_size(contained_range_start, contained_range_end).unwrap();
                     if range_start_enum == ContainedType::Start {
-                        assert!(*start == contained_range_start);
+                        assert!(start == contained_range_start);
                     }
                     return Ok(OverlapType::Partial(size));
                 },
                 ContainedType::Interior => {
-                    let size = contained_range_end-*start+T::one();
-                    return Ok(OverlapType::Partial(T::from(size).unwrap()));
+                    //let size = contained_range_end-*start+T::one();
+                    let size = T::range_tuple_size(start, &contained_range_end).unwrap();
+                    return Ok(OverlapType::Partial(size));
                 },
                 ContainedType::End => {
-                    assert!(*start == contained_range_end);
-                    return Ok(OverlapType::Partial(T::one()));
+                    assert!(start == contained_range_end);
+                    // Overlap is 1 for integer types and 0 for real types
+                    return Ok(OverlapType::Partial(
+                        T::range_tuple_size(start, &contained_range_end).unwrap()));
                 }
             }
         } else {
@@ -286,48 +288,54 @@ where
                 !(range_start_enum==ContainedType::Exterior
                 && range_start_id==vec_count)
             );
-            let mut partial_count: T = T::zero();
             // Count overlap for range_start_id range
-            partial_count = partial_count + match range_start_enum {
+            let mut partial_count = match range_start_enum {
                 ContainedType::Exterior | ContainedType::Start => {
-                    let contained_range_start = self.range_storage[2*range_start_id];
-                    let contained_range_end = self.range_storage[2*range_start_id+1];
+                    let contained_range_start = &self.range_storage[2*range_start_id];
+                    let contained_range_end = &self.range_storage[2*range_start_id+1];
                     if range_start_enum == ContainedType::Start {
-                        assert!(*start == contained_range_start);
+                        assert!(start == contained_range_start);
                     }
-                    contained_range_end-contained_range_start+T::one()
+                    //contained_range_end-contained_range_start+T::one()
+                    T::range_tuple_size(contained_range_start, contained_range_end).unwrap()
                 },
                 ContainedType::Interior => {
-                    let contained_range_end = self.range_storage[2*range_start_id+1];
-                    contained_range_end-*start+T::one()
+                    let contained_range_end = &self.range_storage[2*range_start_id+1];
+                    //contained_range_end-*start+T::one()
+                    T::range_tuple_size(start, contained_range_end).unwrap()
                 }
                 ContainedType::End => {
-                    let contained_range_end = self.range_storage[2*range_start_id+1];
-                    assert!(*start == contained_range_end);
-                    T::one()
+                    let contained_range_end = &self.range_storage[2*range_start_id+1];
+                    assert!(start == contained_range_end);
+                    // Overlap is 1 for integer types and 0 for real types
+                    T::range_tuple_size(start, contained_range_end).unwrap()
                 }
             };
             // Count overlap for range_end_id range
             if range_end_enum!=ContainedType::Exterior {
-                let contained_range_begin = self.range_storage[2*range_end_id];
-                let size = *end-contained_range_begin+T::one();
+                let contained_range_begin = &self.range_storage[2*range_end_id];
+                //let size = *end-contained_range_begin+T::one();
+                let size = T::range_tuple_size(contained_range_begin, end).unwrap();
                 // Asserts
                 match range_end_enum {
                     ContainedType::Exterior => unreachable!(),
-                    ContainedType::Start => assert!(size == T::one()),
+                    ContainedType::Start => {
+                        // 1 for integer types and 0 for real types
+                    },
                     ContainedType::Interior => (), // No assert needed
                     ContainedType::End => {
-                        let contained_range_end = self.range_storage[2*range_end_id+1];
-                        assert!(*end == contained_range_end);
+                        let contained_range_end = &self.range_storage[2*range_end_id+1];
+                        assert!(end == contained_range_end);
                     }
                 }
                 partial_count = partial_count + size;
             }
             // Count overlap for intermediate ranges
             for selected_id in range_start_id+1..range_end_id {
-                let selected_range_begin = self.range_storage[2*selected_id];
-                let selected_range_end = self.range_storage[2*selected_id+1];
-                let size = selected_range_end-selected_range_begin+T::one();
+                let selected_range_begin = &self.range_storage[2*selected_id];
+                let selected_range_end = &self.range_storage[2*selected_id+1];
+                //let size = selected_range_end-selected_range_begin+T::one();
+                let size = T::range_tuple_size(selected_range_begin, selected_range_end).unwrap();
                 partial_count = partial_count + size;
             }
             return Ok(OverlapType::Partial(partial_count));
@@ -385,26 +393,26 @@ where
             if element_range_id == 0 {
                 return Err((
                     Bound::Unbounded,
-                    Bound::Excluded(self.range_storage[0])
+                    Bound::Excluded(self.range_storage[0].clone())
                 ));
             } else if element_range_id == range_count {
                 let end_index = 2*element_range_id-1;
                 return Err((
-                    Bound::Excluded(self.range_storage[end_index]),
+                    Bound::Excluded(self.range_storage[end_index].clone()),
                     Bound::Unbounded
                 ));
             } else {
-                let next_range_start = self.range_storage[2*element_range_id];
+                let next_range_start = self.range_storage[2*element_range_id].clone();
                 // 2*(element_range_id-1)+1
-                let prev_range_end = self.range_storage[2*element_range_id-1];
+                let prev_range_end = self.range_storage[2*element_range_id-1].clone();
                 return Err((
                     Bound::Excluded(prev_range_end),
                     Bound::Excluded(next_range_start)
                 ));
             }
         } else {
-            let range_start = self.range_storage[2*element_range_id];
-            let range_end = self.range_storage[2*element_range_id+1];
+            let range_start = self.range_storage[2*element_range_id].clone();
+            let range_end = self.range_storage[2*element_range_id+1].clone();
             return Ok((
                 Bound::Included(range_start),
                 Bound::Included(range_end)
@@ -437,11 +445,11 @@ where
                 // Use match arms to catch potential overflows
                 let prev_adj = match *start == T::min_value() {
                     true => Err(0), // start index, guaranteed not present
-                    false => self.range_storage.binary_search(&(*start-T::one()))
+                    false => self.range_storage.binary_search(&start.step_decr())
                 };
                 let next_adj = match *end == T::max_value() {
                     true => Err(self.range_storage.len()), // end index, guaranteed not present
-                    false => self.range_storage.binary_search(&(*end+T::one()))
+                    false => self.range_storage.binary_search(&end.step_incr())
                 };
                 if let (Ok(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
                     // For a single-point range, binary search may have found "wrong" element
@@ -475,7 +483,7 @@ where
                         _ => unreachable!()
                     };
                     self.range_storage.remove_index(index_remove);
-                    self.range_storage.insert(*end);
+                    self.range_storage.insert(end.clone());
                 } else if let Ok(next_val) = next_adj {
                     // For a single-point range, binary search may have found second element
                     // If so, we decrement the index to remove by 1
@@ -487,13 +495,13 @@ where
                         _ => unreachable!()
                     };
                     self.range_storage.remove_index(index_remove);
-                    self.range_storage.insert(*start);
+                    self.range_storage.insert(start.clone());
                 } else {
                     assert_eq!(prev_adj.unwrap_err() % 2, 0);
                     assert_eq!(prev_adj.unwrap_err(), next_adj.unwrap_err());
                     // Insert entirely new range
-                    self.range_storage.insert(*start);
-                    self.range_storage.insert(*end);
+                    self.range_storage.insert(start.clone());
+                    self.range_storage.insert(end.clone());
                 }
             }
             OverlapType::Partial(_) => {
@@ -528,15 +536,15 @@ where
                 if start_enum == ContainedType::Exterior {
                     let index_rm = 2*start_range_id;
                     if start_range_id > 0
-                            && self.range_storage[index_rm-1] == *start-T::one() {
+                            && self.range_storage[index_rm-1] == start.step_decr() {
                         // End of prev range is adjacent to new one-merge ranges
                         // Removing gap is justified because overlap is partial
                         // start_range_id > 0 -> ranges do not involve 0
                         self.range_storage.drain(index_rm-1..=index_rm);
                     } else {
                         // Extend range with new starting position
-                        let old_element = self.range_storage[index_rm];
-                        let insert_pos = self.range_storage.insert(*start);
+                        let old_element = self.range_storage[index_rm].clone();
+                        let insert_pos = self.range_storage.insert(start.clone());
                         assert_eq!(insert_pos, index_rm);
                         let removed_element = self.range_storage.remove_index(index_rm+1);
                         assert!(old_element == removed_element);
@@ -549,13 +557,13 @@ where
                     debug_assert_ne!(end_range_id, 0);
                     let old_index_rm = 2*(end_range_id-1)+1;
                     if old_index_rm < (self.range_storage.len()-1)
-                            && self.range_storage[old_index_rm+1] == *end+T::one() {
+                            && self.range_storage[old_index_rm+1] == end.step_incr() {
                         // Start of next range is adjacent to inserted range
                         self.range_storage.drain(old_index_rm..=old_index_rm+1);
                     } else {
                         // Extend range with new ending position
-                        let old_element = self.range_storage[old_index_rm];
-                        let insert_pos = self.range_storage.insert(*end);
+                        let old_element = self.range_storage[old_index_rm].clone();
+                        let insert_pos = self.range_storage.insert(end.clone());
                         assert_eq!(insert_pos, old_index_rm+1);
                         let removed_element = self.range_storage.remove_index(old_index_rm);
                         assert!(old_element == removed_element);
@@ -640,7 +648,7 @@ where
                     // Move the endpoint to new location
                     self.range_storage.remove_index(2*start_range_id+1);
                     let insert_pos = {
-                        let ret_pos = self.range_storage.insert(*start-T::one());
+                        let ret_pos = self.range_storage.insert(start.step_decr());
                         match ret_pos % 2 {
                             0 => {
                                 // Should only hit this if a singleton is left
@@ -665,7 +673,7 @@ where
                     // Move the startpoint to new location
                     self.range_storage.remove_index(2*end_range_id);
                     let insert_pos = {
-                        let ret_pos = self.range_storage.insert(*end+T::one());
+                        let ret_pos = self.range_storage.insert(end.step_incr());
                         match ret_pos % 2 {
                             0 => ret_pos,
                             1 => {
@@ -688,8 +696,8 @@ where
                         // Range has single element, equal to an endpoint
                         let old_endpoint = self.range_storage.remove_index(prev_val);
                         let replacement_endpoint = match prev_val % 2 {
-                            0 => old_endpoint+T::one(), // Was beginning
-                            1 => old_endpoint-T::one(), // Was end
+                            0 => old_endpoint.step_incr(), // Was beginning
+                            1 => old_endpoint.step_decr(), // Was end
                             _ => unreachable!()
                         };
                         self.range_storage.insert(replacement_endpoint);
@@ -704,17 +712,17 @@ where
                     assert_eq!(prev_val % 2, 0);
                     // Shrink start range by replacing start point
                     self.range_storage.remove_index(prev_val);
-                    self.range_storage.insert(*end+T::one());
+                    self.range_storage.insert(end.step_incr());
                 } else if let (Err(prev_val), Ok(next_val)) = (prev_adj, next_adj) {
                     assert_eq!(prev_val, next_val);
                     assert_eq!(prev_val % 2, 1);
                     // Extend end range by one, and insert other end
                     self.range_storage.remove_index(next_val);
-                    self.range_storage.insert(*start-T::one());
+                    self.range_storage.insert(start.step_decr());
                 } else {
                     // Subtract entirely new range
-                    self.range_storage.insert(*start-T::one());
-                    self.range_storage.insert(*end+T::one());
+                    self.range_storage.insert(start.step_decr());
+                    self.range_storage.insert(end.step_incr());
                 }
             }
         }
@@ -744,7 +752,7 @@ where
     }
 }
 
-impl<T: PrimInt> BitOr<&RangeUnionFind<T>> for &RangeUnionFind<T> {
+impl<T: NumInRange> BitOr<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     /// Computes the union of the two [`RangeUnionFind`] objects.
     fn bitor(self, rhs: &RangeUnionFind<T>) -> Self::Output {
@@ -754,7 +762,7 @@ impl<T: PrimInt> BitOr<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     }
 }
 
-impl<T: PrimInt> Sub<&RangeUnionFind<T>> for &RangeUnionFind<T> {
+impl<T: NumInRange> Sub<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     /// Subtracts the rhs [`RangeUnionFind`] object from the lhs one.
     fn sub(self, rhs: &RangeUnionFind<T>) -> Self::Output {
@@ -766,7 +774,7 @@ impl<T: PrimInt> Sub<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     }
 }
 
-impl<T: PrimInt> Not for &RangeUnionFind<T> {
+impl<T: NumInRange> Not for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     fn not(self) -> Self::Output {
         let mut full_obj = RangeUnionFind::new();
@@ -775,7 +783,7 @@ impl<T: PrimInt> Not for &RangeUnionFind<T> {
     }
 }
 
-impl<T: PrimInt> BitXor<&RangeUnionFind<T>> for &RangeUnionFind<T> {
+impl<T: NumInRange> BitXor<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     fn bitxor(self, rhs: &RangeUnionFind<T>) -> Self::Output {
         let first_diff_half = self - rhs;
@@ -784,7 +792,7 @@ impl<T: PrimInt> BitXor<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     }
 }
 
-impl<T: PrimInt> BitAnd<&RangeUnionFind<T>> for &RangeUnionFind<T> {
+impl<T: NumInRange> BitAnd<&RangeUnionFind<T>> for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     /// Computes the union of the two [`RangeUnionFind`] objects.
     fn bitand(self, rhs: &RangeUnionFind<T>) -> Self::Output {
@@ -815,9 +823,9 @@ impl<T: PrimInt> BitAnd<&RangeUnionFind<T>> for &RangeUnionFind<T> {
             let second_range = get_normalized_range(second_range_option.unwrap()).unwrap();
 
             // Identify overlap and add overlap range to vec
-            let start_overlap = max(first_range.0, second_range.0);
-            let end_overlap = min(first_range.1, second_range.1);
-            let overlap_range = start_overlap..=end_overlap;
+            let start_overlap = max(&first_range.0, &second_range.0);
+            let end_overlap = min(&first_range.1, &second_range.1);
+            let overlap_range = start_overlap.clone()..=end_overlap.clone();
             if get_normalized_range(&overlap_range).is_ok() {
                 result_vec.push(overlap_range);
             }
@@ -848,7 +856,7 @@ impl<T: PrimInt> BitAnd<&RangeUnionFind<T>> for &RangeUnionFind<T> {
 
 impl<T> fmt::Debug for RangeUnionFind<T>
 where
-    T: PrimInt + fmt::Debug,
+    T: NumInRange + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.range_storage.len() % 2 != 0 {
@@ -876,7 +884,7 @@ where
 
 impl<T, U> Extend<U> for RangeUnionFind<T>
 where
-    T: PrimInt,
+    T: NumInRange,
     U: RangeBounds<T>
 {
     /// Calls [`Self::insert_range`] for each range in the iterator.
@@ -893,7 +901,7 @@ where
 
 impl<T, U> FromIterator<U> for RangeUnionFind<T>
 where
-    T: PrimInt,
+    T: NumInRange,
     U: RangeBounds<T>
 {
     /// Calls [`Self::insert_range`] for each range in the iterator.
@@ -912,7 +920,7 @@ where
 }
 
 // TODO: other Vec types?
-impl<T: PrimInt> From<RangeUnionFind<T>> for Vec<RangeInclusive<T>> {
+impl<T: NumInRange> From<RangeUnionFind<T>> for Vec<RangeInclusive<T>> {
     fn from(union_obj: RangeUnionFind<T>) -> Vec<RangeInclusive<T>> {
         union_obj.into_collection()
     }

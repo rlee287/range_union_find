@@ -3,15 +3,14 @@ use crate::num_trait::{get_normalized_range, Steppable, NumInRange, RangeOperati
 use core::fmt;
 
 use core::borrow::Borrow;
-use core::ops::{Deref, RangeBounds};
+use core::convert::TryFrom;
+use core::ops::{Add, Deref, RangeBounds};
 
 use num_traits::{Float, Zero};
-//#[cfg(any(feature = "std", feature = "libm"))]
-//use float_next_after::NextAfter;
-use core::convert::TryFrom;
 
 #[cfg(any(feature = "std", feature = "libm"))]
 #[derive(Debug, Clone, Copy)]
+/// Error returned when the float is NaN.
 pub struct FloatIsNan {}
 impl fmt::Display for FloatIsNan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,14 +35,17 @@ macro_rules! impl_try_from_float {
         }
     };
 }
+// Do not use ordered-float crate due to orphan rules
 #[repr(transparent)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+/// Wrapper for non-NaN floats that implements Eq and Ord.
 pub struct NonNanFloat<T: Float>(T);
 
 impl_try_from_float!(f32, NonNanFloat<f32>);
 impl_try_from_float!(f64, NonNanFloat<f64>);
 
 impl<T: Float> NonNanFloat<T> {
+    #[inline(always)]
     pub fn new(val: T) -> Self {
         if val.is_nan() {
             panic!("{}", FloatIsNan {});
@@ -51,6 +53,7 @@ impl<T: Float> NonNanFloat<T> {
             NonNanFloat(val)
         }
     }
+    #[inline(always)]
     pub fn into_inner(&self) -> T {
         self.0
     }
@@ -65,17 +68,28 @@ impl<T: Float> Deref for NonNanFloat<T> {
 
 impl<T: Float> Eq for NonNanFloat<T> {}
 impl<T: Float> Ord for NonNanFloat<T> {
+    #[inline(always)]
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
 }
 
-macro_rules! impl_float_in_range {
+macro_rules! impl_float_traits {
     ($float: ty, $wrap: ty, $next_after: expr) => {
+        impl Add for $wrap {
+            type Output = Self;
+
+            #[inline(always)]
+            fn add(self, rhs: Self) -> Self::Output {
+                <$wrap>::new(self.0 + rhs.0)
+            }
+        }
         impl NumInRange for $wrap {
+            #[inline(always)]
             fn min_value() -> Self {
                 <$wrap>::new(<$float>::NEG_INFINITY)
             }
+            #[inline(always)]
             fn max_value() -> Self {
                 <$wrap>::new(<$float>::INFINITY)
             }
@@ -91,6 +105,7 @@ macro_rules! impl_float_in_range {
             fn range_size<B: Borrow<Self>, R: RangeBounds<B>>(range: R) -> Result<Self, RangeOperationError> {
                 let (start_inclusive, end_inclusive) = get_normalized_range(&range)?;
                 let size = <$wrap>::new(end_inclusive.0-start_inclusive.0).step_incr();
+                // Technically correct answer is size.step_incr() but this would be too unintuitive
                 assert!(size.0 > <$float>::zero());
                 Ok(size)
             }
@@ -98,8 +113,8 @@ macro_rules! impl_float_in_range {
     }
 }
 
-impl_float_in_range!(f32, NonNanFloat<f32>, nextafterf);
-impl_float_in_range!(f64, NonNanFloat<f64>, nextafter);
+impl_float_traits!(f32, NonNanFloat<f32>, nextafterf);
+impl_float_traits!(f64, NonNanFloat<f64>, nextafter);
 
 // impl<T: Float> NumInRange for NonNanFloat<T> forbidden
 
