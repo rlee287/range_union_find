@@ -40,17 +40,21 @@ where
 {
     let start: N = match range.start_bound() {
         Bound::Included(val) => val.borrow().clone(),
-        Bound::Excluded(val) => match val.borrow() == &N::max_value() {
-            true => return Err(RangeOperationError::WouldOverflow),
-            false => val.borrow().step_incr()
+        Bound::Excluded(val) => {
+            if N::MAX_INCR_IS_OVERFLOW && (val.borrow() == &N::max_value()) {
+                return Err(RangeOperationError::WouldOverflow);
+            }
+            val.borrow().step_incr()
         }
         Bound::Unbounded => N::min_value()
     };
     let end: N = match range.end_bound() {
         Bound::Included(val) => val.borrow().clone(),
-        Bound::Excluded(val) => match val.borrow() == &N::min_value() {
-            true => return Err(RangeOperationError::WouldOverflow),
-            false => val.borrow().step_decr()
+        Bound::Excluded(val) => {
+            if N::MIN_DECR_IS_UNDERFLOW && val.borrow() == &N::min_value() {
+                return Err(RangeOperationError::WouldOverflow);
+            }
+            val.borrow().step_decr()
         }
         Bound::Unbounded => N::max_value()
     };
@@ -85,6 +89,10 @@ pub trait NumInRange: Steppable + Add<Output = Self> + Clone + PartialOrd + Ord 
     fn min_value() -> Self;
     /// Return the maximum possible value the number can take.
     fn max_value() -> Self;
+    /// Whether caling [`Steppable::step_decr`] on the min value would underflow the type.
+    const MIN_DECR_IS_UNDERFLOW: bool;
+    /// Whether caling [`Steppable::step_incr`] on the max value would overflow the type.
+    const MAX_INCR_IS_OVERFLOW: bool;
 }
 
 impl<T: PrimInt> NumInRange for T {
@@ -96,6 +104,8 @@ impl<T: PrimInt> NumInRange for T {
     fn max_value() -> Self{
         T::max_value()
     }
+    const MIN_DECR_IS_UNDERFLOW: bool = true;
+    const MAX_INCR_IS_OVERFLOW: bool = true;
 }
 impl<T: PrimInt> Steppable for T {
     #[inline(always)]

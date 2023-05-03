@@ -111,6 +111,8 @@ macro_rules! impl_float_traits {
             fn max_value() -> Self {
                 <$wrap>::new(<$float>::INFINITY)
             }
+            const MIN_DECR_IS_UNDERFLOW: bool = false;
+            const MAX_INCR_IS_OVERFLOW: bool = false;
         }
         impl Steppable for $wrap {
             fn step_incr(&self) -> Self {
