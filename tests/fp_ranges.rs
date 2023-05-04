@@ -72,6 +72,7 @@ fn multi_range_range_partial() {
     let mut range_obj = RangeUnionFind::<NonNanFloat<f64>>::new();
     range_obj.insert_range(&wrap_fp_range(&(-8.0..=-4.0)).unwrap()).unwrap();
     range_obj.insert_range(&wrap_fp_range(&(4.0..=8.0)).unwrap()).unwrap();
+    // fp 8.0 step_incr is twice as large as 4.0 step_incr
     assert_eq!(range_obj.has_range(&wrap_fp_range(&(-10.0..=-1.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(4.0).step_incr()));
     assert_eq!(range_obj.has_range(&wrap_fp_range(&(-1.0..=9.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(4.0).step_incr()));
     assert_eq!(range_obj.has_range(&wrap_fp_range(&(-10.0..=9.0)).unwrap()).unwrap(),OverlapType::Partial(NonNanFloat::new(8.0).step_incr()));

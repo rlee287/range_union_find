@@ -16,7 +16,7 @@
 //! # Ok::<(), RangeOperationError>(())
 //! ```
 //! 
-//! The main type is the [`RangeUnionFind`] struct, with the [`NumInRange`] trait implemented for primitive integer and float types that can be used to form ranges.
+//! The main type is the [`RangeUnionFind`] struct, with the [`NumInRange`] trait implemented for primitive integer and float types that can be used to form ranges. While we make a best effort to support floating point ranges, unexpected issues may arise with floating point imprecision.
 #[cfg(any(feature = "std", test))]
 #[macro_use]
 extern crate std;

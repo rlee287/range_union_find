@@ -105,7 +105,7 @@ macro_rules! impl_float_traits {
             fn range_size<B: Borrow<Self>, R: RangeBounds<B>>(range: R) -> Result<Self, RangeOperationError> {
                 let (start_inclusive, end_inclusive) = get_normalized_range(&range)?;
                 let size = <$wrap>::new(end_inclusive.0-start_inclusive.0).step_incr();
-                // Technically correct answer is size.step_incr() but this would be too unintuitive
+                // Technically correct to .step_incr() to include endpoint
                 assert!(size.0 > <$float>::zero());
                 Ok(size)
             }

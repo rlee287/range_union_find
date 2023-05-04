@@ -76,6 +76,7 @@ pub trait Steppable: Clone + PartialOrd + Ord {
 
     /// Return the size of the range.
     fn range_size<N: Borrow<Self>, R: RangeBounds<N>>(range: R) -> Result<Self, RangeOperationError>;
+    /// Functions like [`Self::range_size`] given input `start..=end`.
     fn range_tuple_size<N: Borrow<Self>>(start: N, end: N) -> Result<Self, RangeOperationError> {
         Self::range_size((Bound::Included(start), Bound::Included(end)))
     }
