@@ -85,7 +85,7 @@ fn get_result_wrapped_val<T>(res: Result<T,T>) -> T {
  * assert always b_i < a_{i+1}; ranges are disjoint
  * We also assume ranges are always as optimized as possible
  */
-/// Struct representing a union of ranges.
+/// Struct representing a union of ranges. See the documentation for [`NonNanFloat`]'s impl of the [`Steppable`] trait for caveats when using this type with floating-point numbers.
 pub struct RangeUnionFind<T: NumInRange> {
     range_storage: SortedVec<T>,
 }

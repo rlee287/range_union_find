@@ -5,11 +5,12 @@ use core::fmt;
 use core::borrow::Borrow;
 use core::convert::TryFrom;
 use core::ops::{Add, Deref, RangeBounds};
+use core::hash::{Hash, Hasher};
 
 use num_traits::{Float, Zero};
 
 #[cfg(any(feature = "std", feature = "libm"))]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash)]
 /// Error returned when the float is NaN.
 pub struct FloatIsNan {}
 impl fmt::Display for FloatIsNan {
@@ -20,8 +21,25 @@ impl fmt::Display for FloatIsNan {
 #[cfg(feature = "std")]
 impl std::error::Error for FloatIsNan {}
 
-macro_rules! impl_try_from_float {
+// Do not use ordered-float crate due to orphan rules
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+/// Wrapper for non-NaN floats that implements Eq and Ord.
+pub struct NonNanFloat<T: Float>(T);
+
+macro_rules! impl_float_interconv {
     ($float: ty, $wrap: ty) => {
+        impl Hash for NonNanFloat<$float> {
+            #[inline]
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                let bits = if self.is_zero() {
+                    <$float>::zero().to_bits()
+                } else {
+                    self.0.to_bits()
+                };
+                bits.hash(state)
+            }
+        }
         impl TryFrom<$float> for $wrap {
             type Error = FloatIsNan;
 
@@ -33,19 +51,20 @@ macro_rules! impl_try_from_float {
                 }
             }
         }
+        impl From<$wrap> for $float {
+            fn from(value: $wrap) -> Self {
+                value.0
+            }
+        }
     };
 }
-// Do not use ordered-float crate due to orphan rules
-#[repr(transparent)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
-/// Wrapper for non-NaN floats that implements Eq and Ord.
-pub struct NonNanFloat<T: Float>(T);
 
-impl_try_from_float!(f32, NonNanFloat<f32>);
-impl_try_from_float!(f64, NonNanFloat<f64>);
+impl_float_interconv!(f32, NonNanFloat<f32>);
+impl_float_interconv!(f64, NonNanFloat<f64>);
 
 impl<T: Float> NonNanFloat<T> {
     #[inline(always)]
+    /// Try to wrap a float, returning an Error if the float is NaN.
     pub fn try_new(val: T) -> Result<Self, FloatIsNan> {
         if val.is_nan() {
             Err(FloatIsNan {})
@@ -54,6 +73,7 @@ impl<T: Float> NonNanFloat<T> {
         }
     }
     #[inline(always)]
+    /// Try to wrap a float, panicking if the float is NaN.
     pub fn new(val: T) -> Self {
         Self::try_new(val).unwrap()
     }
@@ -92,9 +112,12 @@ impl<T: Float> PartialOrd<T> for NonNanFloat<T> {
     }
 }
 
-macro_rules! impl_float_traits {
+macro_rules! impl_float_steppable {
     ($float: ty, $wrap: ty, $next_after: expr) => {
         impl Steppable for $wrap {
+            //! Considerations for stepping floating-point types:
+            //!  - Steps are performed to the next possible representable value, so the size of the step varies with the original number's magnitude.
+            //!  - Approximations and floating-point error can lead to miniscule gaps and other unexpected behaviors. For example, 0.3-0.2-0.1=-2.7755575615628914e-17 will not be contained in a nonnegative range starting at 0.
             fn step_incr(&self) -> Self {
                 <$wrap>::new($next_after(self.0, Self::max_value().0))
             }
@@ -138,8 +161,8 @@ where
     const MAX_INCR_IS_OVERFLOW: bool = false;
 }
 
-impl_float_traits!(f32, NonNanFloat<f32>, nextafterf);
-impl_float_traits!(f64, NonNanFloat<f64>, nextafter);
+impl_float_steppable!(f32, NonNanFloat<f32>, nextafterf);
+impl_float_steppable!(f64, NonNanFloat<f64>, nextafter);
 
 // impl<T: Float> NumInRange for NonNanFloat<T> forbidden
 
