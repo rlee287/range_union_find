@@ -16,7 +16,7 @@ categories = ["algorithms", "data-structures"]
 default = ["std"]
 std = ["num-traits/std"]
 libm = ["num-traits/libm"]
-include_serde = ["serde", "sorted-vec/serde"]
+include_serde = ["serde", "sorted-vec/serde-nontransparent"]
 
 [dependencies]
 num-traits = { version = "0.2", default-features = false }
