@@ -1,7 +1,8 @@
 # Changelog
 
-## v0.5.0 unreleased
+## v0.5.0
 - Replace `IntRangeUnionFind` with a generic `RangeUnionFind` type that works with a `NumInRange` trait, impl'ed on PrimInts and floats
+- Add the `*Assign` variants of the impl'd `core::ops` traits and let all of them accept the rhs by value as well as by reference
 
 ## v0.4.4
 - Fix a false positive index assertion in removal code that did not account for singleton ranges being left behind
