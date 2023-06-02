@@ -63,7 +63,7 @@ fn extend_bitor_equivalence() {
     let range_obj_final = &range_obj_first | &range_obj_second;
     assert_eq!(range_obj_full, range_obj_final);
 
-    range_obj_build = &range_obj_build | &range_obj_second;
+    range_obj_build = &range_obj_build | range_obj_second;
     assert_eq!(range_obj_full, range_obj_build);
 }
 
@@ -545,7 +545,7 @@ fn remove_sub_equivalence() {
     range_rhs.insert_range(&(30..=60)).unwrap();
     range_rhs.insert_range(&(11..16)).unwrap();
 
-    let sub_obj = &full_obj - &range_rhs;
+    let sub_obj = &full_obj - range_rhs;
     assert_eq!(range_obj, sub_obj);
 }
 #[test]
@@ -601,7 +601,7 @@ fn bitand_when_contained() {
     rhs_obj.insert_range(&(20..=30)).unwrap();
 
     let anded_obj_1 = &range_obj & &rhs_obj;
-    let anded_obj_2 = &rhs_obj & &range_obj;
+    let anded_obj_2 = &rhs_obj & range_obj;
     assert_eq!(anded_obj_1, anded_obj_2);
 
     assert_eq!(anded_obj_1, rhs_obj);
@@ -615,7 +615,7 @@ fn bitand_when_disjoint() {
     rhs_obj.insert_range(&(20..=30)).unwrap();
 
     let anded_obj_1 = &range_obj & &rhs_obj;
-    let anded_obj_2 = &rhs_obj & &range_obj;
+    let anded_obj_2 = &rhs_obj & range_obj;
     assert_eq!(anded_obj_1, anded_obj_2);
 
     let expected_obj = RangeUnionFind::<u8>::new();
@@ -633,7 +633,7 @@ fn bitand_overarch_subselect() {
     rhs_obj.insert_range(&(0..35)).unwrap();
 
     let anded_obj_1 = &range_obj & &rhs_obj;
-    let anded_obj_2 = &rhs_obj & &range_obj;
+    let anded_obj_2 = &rhs_obj & range_obj;
     assert_eq!(anded_obj_1, anded_obj_2);
 
     let mut expected_obj = RangeUnionFind::<u8>::new();
@@ -668,7 +668,7 @@ fn xor_partial() {
     expected_xor_obj.insert_range(&(10..=14)).unwrap();
     expected_xor_obj.insert_range(&(21..=25)).unwrap();
 
-    assert_eq!(&range_obj ^ &rhs_obj, expected_xor_obj);
+    assert_eq!(&range_obj ^ rhs_obj, expected_xor_obj);
 }
 
 #[test]
