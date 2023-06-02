@@ -24,7 +24,7 @@ extern crate std;
 extern crate alloc;
 
 use core::ops::{Bound, RangeBounds, RangeInclusive};
-use core::ops::{BitOr, Sub, BitAnd, Not, BitXor};
+use core::ops::{BitOr, BitOrAssign, Sub, SubAssign, BitAnd, BitAndAssign, Not, BitXor, BitXorAssign};
 use core::cmp::{min, max};
 
 use alloc::vec::Vec;
@@ -758,8 +758,13 @@ impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> BitOr<B> for &RangeUnionFind<T
     /// Computes the union of the two [`RangeUnionFind`] objects.
     fn bitor(self, rhs: B) -> Self::Output {
         let mut dup_obj = self.clone();
-        dup_obj.extend(rhs.borrow().to_collection::<Vec<_>>());
+        dup_obj |= rhs;
         dup_obj
+    }
+}
+impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> BitOrAssign<B> for RangeUnionFind<T> {
+    fn bitor_assign(&mut self, rhs: B) {
+        self.extend(rhs.borrow().to_collection::<Vec<_>>())
     }
 }
 
@@ -768,10 +773,15 @@ impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> Sub<B> for &RangeUnionFind<T> 
     /// Subtracts the rhs [`RangeUnionFind`] object from the lhs one.
     fn sub(self, rhs: B) -> Self::Output {
         let mut dup_obj = self.clone();
-        for range in rhs.borrow().to_collection::<Vec<_>>() {
-            dup_obj.remove_range(&range).unwrap();
-        }
+        dup_obj -= rhs;
         dup_obj
+    }
+}
+impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> SubAssign<B> for RangeUnionFind<T> {
+    fn sub_assign(&mut self, rhs: B) {
+        for range in rhs.borrow().to_collection::<Vec<_>>() {
+            self.remove_range(&range).unwrap();
+        }
     }
 }
 
@@ -784,17 +794,26 @@ impl<T: NumInRange> Not for &RangeUnionFind<T> {
     }
 }
 
-impl<T: NumInRange, B:Borrow<RangeUnionFind<T>>> BitXor<B> for &RangeUnionFind<T> {
+impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> BitXor<B> for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     fn bitxor(self, rhs: B) -> Self::Output {
+        let mut dup_obj = self.clone();
+        dup_obj ^= rhs;
+        dup_obj
+    }
+}
+impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> BitXorAssign<B> for RangeUnionFind<T> {
+    fn bitxor_assign(&mut self, rhs: B) {
         let rhs_ref = rhs.borrow();
-        let first_diff_half = self - rhs_ref;
-        let second_diff_half = rhs_ref - self;
-        &first_diff_half | second_diff_half
+        let intersection = &self.clone() & rhs_ref;
+        self.extend(rhs_ref.to_collection::<Vec<_>>());
+        for range in intersection.to_collection::<Vec<_>>() {
+            self.remove_range(&range).unwrap();
+        }
     }
 }
 
-impl<T: NumInRange, B:Borrow<RangeUnionFind<T>>> BitAnd<B> for &RangeUnionFind<T> {
+impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> BitAnd<B> for &RangeUnionFind<T> {
     type Output = RangeUnionFind<T>;
     /// Computes the union of the two [`RangeUnionFind`] objects.
     fn bitand(self, rhs: B) -> Self::Output {
@@ -853,6 +872,11 @@ impl<T: NumInRange, B:Borrow<RangeUnionFind<T>>> BitAnd<B> for &RangeUnionFind<T
             }
         }
         RangeUnionFind::from_iter(result_vec.into_iter())
+    }
+}
+impl<T: NumInRange, B: Borrow<RangeUnionFind<T>>> BitAndAssign<B> for RangeUnionFind<T> {
+    fn bitand_assign(&mut self, rhs: B) {
+        *self = (self as &Self) & rhs;
     }
 }
 
