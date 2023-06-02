@@ -5,7 +5,6 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](https://github.com/rlee287/range_union_find/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/rlee287/range_union_find/blob/main/LICENSE-MIT)
 
-This crate implements a union-find data structure for ranges.
-Currently we support ranges of `PrimInt`s, but we may extend this to other types in the future.
+This crate implements a union-find data structure for ranges that supports `PrimInt`s and `Float`s.
 
 See the API documentation for more information.

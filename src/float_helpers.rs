@@ -9,6 +9,9 @@ use core::hash::{Hash, Hasher};
 
 use num_traits::{Float, Zero};
 
+#[cfg(feature = "include_serde")]
+use serde::{Serialize, Deserialize};
+
 #[cfg(any(feature = "std", feature = "libm"))]
 #[derive(Debug, Clone, Copy, Hash)]
 /// Error returned when the float is NaN.
@@ -24,6 +27,8 @@ impl std::error::Error for FloatIsNan {}
 // Do not use ordered-float crate due to orphan rules
 #[repr(transparent)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "include_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "include_serde", serde(transparent))]
 /// Wrapper for non-NaN floats that implements Eq and Ord.
 pub struct NonNanFloat<T: Float>(T);
 
